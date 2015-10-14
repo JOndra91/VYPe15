@@ -7,6 +7,13 @@ module Main where
 %error     { parseError }
 
 %token 
+  if          {TokenIf}
+  else        {TokenElse}
+  return      {TokenReturn}
+  while       {TokenWhile}
+  ';'         {TokenSemicolon}
+  '{'         {TokenOCB}
+  '}'         {TokenCCB}
   numConst    { TokenNumConst $$ }
   charConst   { TokenCharConst $$ }
   stringConst { TokenStringConst $$ }
@@ -43,7 +50,10 @@ module Main where
 
 %%
 
-Stat  : identifier '=' Exp { Assign $1 $3 }
+Stat  : identifier '=' Exp ';'                            { Assign $1 $3 }
+      | if '(' Exp ')' '{' Stat '}' else '{' Stat '}' ';' { If $3 $6 $10 }
+      | return Exp ';'                                    { Return $2  }
+      | while '(' Exp ')' '{' Stat '}' ';'                { While $3 $6 }
 
 Exp : Exp '||' Exp                  { OR $1 $3 }
     | Exp '&&' Exp                  { AND $1 $3 }
@@ -59,20 +69,23 @@ Exp : Exp '||' Exp                  { OR $1 $3 }
     | Exp '/' Exp                   { Div $1 $3}
     | Exp '%' Exp                   { Mod $1 $3}
     | '!'Exp                        { NOT $2}
-    | '(' Type ')' Exp %prec CAST   { Cast $2 $4}
+    | '(' DataType ')' Exp %prec CAST   { Cast $2 $4}
     | numConst                      { ConsNum $1}
     | stringConst                   { ConsString $1}
     | charConst                     { ConsChar $1}
     | '(' Exp ')'                   { Bracket $2}
          
-Type : int    { Int }
-     | char   { Char }
-     | string { String }
+DataType : int    { Int }
+         | char   { Char }
+         | string { String }
 
 {
 
 data Stat 
   = Assign String Exp
+  | If Exp Stat Stat
+  | Return Exp
+  | While Exp Stat
   deriving Show
 
 data Exp
@@ -90,18 +103,22 @@ data Exp
   | Div Exp Exp
   | Mod Exp Exp
   | NOT Exp
-  | Cast Type Exp
+  | Cast DataType Exp
   | ConsNum Int
   | ConsString String
   | ConsChar Char
   | Bracket Exp
   deriving Show
 
-data Type 
+data DataType 
   = Int
   | Char
   | String
   deriving Show
+
+data Type
+  = DataType
+  | Void
 
 data Token 
   = TokenNumConst Int
@@ -125,6 +142,13 @@ data Token
   | TokenNEG 
   | TokenOB 
   | TokenCB 
+  | TokenOCB
+  | TokenCCB
+  | TokenIf
+  | TokenElse
+  | TokenReturn
+  | TokenWhile
+  | TokenSemicolon
   | TokenString 
   | TokenChar 
   | TokenInt
@@ -155,6 +179,9 @@ lexer ('>':cs) = TokenGreater: lexer cs
 lexer ('!':cs) = TokenNEG : lexer cs
 lexer ('(':cs) = TokenOB : lexer cs
 lexer (')':cs) = TokenCB : lexer cs
+lexer ('{':cs) = TokenOCB : lexer cs
+lexer ('}':cs) = TokenCCB : lexer cs
+lexer (';':cs) = TokenSemicolon : lexer cs
 
 lexCharConst cs = TokenCharConst char : lexer rest
   where (char, rest) = (head cs, drop 2 cs)
@@ -169,6 +196,10 @@ lexVar cs = case var of
     "string" -> TokenString
     "char"   -> TokenChar
     "int"    -> TokenInt
+    "while"  -> TokenWhile
+    "return" -> TokenReturn
+    "if"     -> TokenIf
+    "else"   -> TokenElse
     _        -> TokenID var
     : lexer rest
  where (var, rest) = span isAlpha cs
