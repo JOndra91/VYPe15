@@ -1,5 +1,7 @@
 {
 module Main where
+
+import Data.Char
 }
 
 %name      calc
@@ -38,6 +40,8 @@ module Main where
   string      { TokenString }
   char        { TokenChar }
   int         { TokenInt }
+  void	      { TokenVoid }
+  ','         { TokenComma }
 
 %left '||'
 %left '&&'
@@ -49,11 +53,30 @@ module Main where
 %left CAST
 
 %%
+Program : Program FuncDef           { reverse $ $2:$1 }
+        | Program FuncDeclr         { reverse $ $2:$1 }
+        | FuncDef                   { [$1] }
+        | FuncDeclr                 { [$1] }
 
-Stat  : identifier '=' Exp ';'                            { Assign $1 $3 }
-      | if '(' Exp ')' '{' Stat '}' else '{' Stat '}' ';' { If $3 $6 $10 }
-      | return Exp ';'                                    { Return $2  }
-      | while '(' Exp ')' '{' Stat '}' ';'                { While $3 $6 }
+FuncDef : Type Identifier '(' Identifier ')' '{' Stats '}'   { FunDef $1 $2 $4 $7 }
+
+FuncDeclr : Type Identifier '(' Identifier ')' ';'           { FunDeclr $1 $2 $4 }
+
+
+Stats : {- empty -}    { [] }
+      | Stats Stat     { $2 : $1 }
+
+Stat  : Identifier '=' Exp ';'                            { Assign $1 $3 }
+      | if '(' Exp ')' '{' Stats '}' else '{' Stats '}'   { If $3 (reverse $6) (reverse $10) }
+      | return Exp ';'                                    { Return (Just $2) }
+      | return ';'                                        { Return Nothing }
+      | while '(' Exp ')' '{' Stats '}'                   { While $3 (reverse $6) }
+      | DataType Identifier IdList ';'                    { VarDef ($2:$3) }
+      | Identifier '(' ExpList ')' ';'                    { FuncCall $1 (reverse $3) }
+
+ExpList : {- empty -}     { [] }
+        | ExpList ',' Exp { $3:$1 }
+        | Exp             { [$1] }
 
 Exp : Exp '||' Exp                  { OR $1 $3 }
     | Exp '&&' Exp                  { AND $1 $3 }
@@ -79,13 +102,35 @@ DataType : int    { Int }
          | char   { Char }
          | string { String }
 
+Type : void	{ Void }
+     | DataType { Type $1 }
+
+IdList : {- empty -}          	       { [] }
+       | IdList ',' Identifier 	       { $3 : $1 }
+
+Identifier : identifier { Identifier $1 }
+
 {
 
+type Program
+  = [ FunDeclrOrDef ]
+
+data FunDeclrOrDef
+  = FunDeclr Type Identifier Identifier
+  | FunDef Type Identifier Identifier [Stat]
+  deriving (Show)
+
+data Identifier
+  = Identifier String
+  deriving (Show)
+
 data Stat 
-  = Assign String Exp
-  | If Exp Stat Stat
-  | Return Exp
-  | While Exp Stat
+  = Assign Identifier Exp
+  | If Exp [Stat] [Stat]
+  | Return (Maybe Exp)
+  | While Exp [Stat]
+  | VarDef [Identifier]
+  | FuncCall Identifier [Exp]
   deriving Show
 
 data Exp
@@ -117,8 +162,9 @@ data DataType
   deriving Show
 
 data Type
-  = DataType
+  = Type DataType
   | Void
+  deriving (Show)
 
 data Token 
   = TokenNumConst Int
@@ -152,6 +198,8 @@ data Token
   | TokenString 
   | TokenChar 
   | TokenInt
+  | TokenVoid
+  | TokenComma
   deriving Show
 
 lexer :: String -> [Token]
@@ -182,6 +230,7 @@ lexer (')':cs) = TokenCB : lexer cs
 lexer ('{':cs) = TokenOCB : lexer cs
 lexer ('}':cs) = TokenCCB : lexer cs
 lexer (';':cs) = TokenSemicolon : lexer cs
+lexer (',':cs) = TokenComma : lexer cs
 
 lexCharConst cs = TokenCharConst char : lexer rest
   where (char, rest) = (head cs, drop 2 cs)
@@ -200,6 +249,7 @@ lexVar cs = case var of
     "return" -> TokenReturn
     "if"     -> TokenIf
     "else"   -> TokenElse
+    "void"   -> TokenVoid
     _        -> TokenID var
     : lexer rest
  where (var, rest) = span isAlpha cs
