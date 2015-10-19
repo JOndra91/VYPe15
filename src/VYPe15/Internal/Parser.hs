@@ -1,9 +1,11 @@
 {-# OPTIONS_GHC -w #-}
 module VYPe15.Internal.Parser where
 
-import Data.Char
+import Data.Char 
 
-import VYPe15.Types.Tokens
+import VYPe15.Types.AST 
+import VYPe15.Types.Tokens (Token(..))
+import VYPe15.Types.Parser (Parser)
 import Control.Applicative(Applicative(..))
 import Control.Monad (ap)
 
@@ -1064,142 +1066,21 @@ happyNewToken action sts stk (tk:tks) =
 happyError_ 48 tk tks = happyError' tks
 happyError_ _ tk tks = happyError' (tk:tks)
 
-newtype HappyIdentity a = HappyIdentity a
-happyIdentity = HappyIdentity
-happyRunIdentity (HappyIdentity a) = a
-
-instance Functor HappyIdentity where
-    fmap f (HappyIdentity a) = HappyIdentity (f a)
-
-instance Applicative HappyIdentity where
-    pure  = return
-    (<*>) = ap
-instance Monad HappyIdentity where
-    return = HappyIdentity
-    (HappyIdentity p) >>= q = q p
-
-happyThen :: () => HappyIdentity a -> (a -> HappyIdentity b) -> HappyIdentity b
+happyThen :: () => Parser a -> (a -> Parser b) -> Parser b
 happyThen = (>>=)
-happyReturn :: () => a -> HappyIdentity a
+happyReturn :: () => a -> Parser a
 happyReturn = (return)
 happyThen1 m k tks = (>>=) m (\a -> k a tks)
-happyReturn1 :: () => a -> b -> HappyIdentity a
+happyReturn1 :: () => a -> b -> Parser a
 happyReturn1 = \a tks -> (return) a
-happyError' :: () => [(Token)] -> HappyIdentity a
-happyError' = HappyIdentity . parseError
+happyError' :: () => [(Token)] -> Parser a
+happyError' = parseError
 
-parseVYPe15 tks = happyRunIdentity happySomeParser where
+parseVYPe15 tks = happySomeParser where
   happySomeParser = happyThen (happyParse action_0 tks) (\x -> case x of {HappyAbsSyn4 z -> happyReturn z; _other -> notHappyAtAll })
 
 happySeq = happyDontSeq
 
-
-type Program
-  = [ FunDeclrOrDef ]
-
-data FunDeclrOrDef
-  = FunDeclr Type Identifier Identifier
-  | FunDef Type Identifier Identifier [Stat]
-  deriving (Show)
-
-data Identifier
-  = Identifier String
-  deriving (Show)
-
-data Stat 
-  = Assign Identifier Exp
-  | If Exp [Stat] [Stat]
-  | Return (Maybe Exp)
-  | While Exp [Stat]
-  | VarDef [Identifier]
-  | FuncCall Identifier [Exp]
-  deriving Show
-
-data Exp
-  = OR Exp Exp
-  | AND Exp Exp
-  | Eq Exp Exp
-  | NonEq Exp Exp
-  | Less Exp Exp
-  | Greater Exp Exp
-  | LessEq Exp Exp
-  | GreaterEq Exp Exp
-  | Plus Exp Exp
-  | Minus Exp Exp
-  | Times Exp Exp
-  | Div Exp Exp
-  | Mod Exp Exp
-  | NOT Exp
-  | Cast DataType Exp
-  | ConsNum Int
-  | ConsString String
-  | ConsChar Char
-  | Bracket Exp
-  deriving Show
-
-data DataType 
-  = Int
-  | Char
-  | String
-  deriving Show
-
-data Type
-  = Type DataType
-  | Void
-  deriving (Show)
-
-
-lexer :: String -> [Token]
-lexer [] = []
-lexer (c:cs) 
-      | isSpace c = lexer cs
-      | isAlpha c = lexVar (c:cs)
-      | isDigit c = lexNum (c:cs)
-      | ('"' == c) = lexStrConst cs
-      | ('\'' == c) = lexCharConst cs
-lexer ('=':cs) = TokenAssign : lexer cs
-lexer ('+':cs) = TokenPlus : lexer cs
-lexer ('-':cs) = TokenMinus : lexer cs
-lexer ('*':cs) = TokenTimes : lexer cs
-lexer ('/':cs) = TokenDiv : lexer cs
-lexer ('%':cs) = TokenMod : lexer cs
-lexer ('<':'=':cs) = TokenLEQ : lexer cs
-lexer ('>':'=':cs) = TokenGEQ : lexer cs
-lexer ('=':'=':cs) = TokenEQ : lexer cs
-lexer ('!':'=':cs) = TokenNEQ : lexer cs
-lexer ('|':'|':cs) = TokenOR : lexer cs
-lexer ('&':'&':cs) = TokenAND : lexer cs
-lexer ('<':cs) = TokenLess : lexer cs
-lexer ('>':cs) = TokenGreater: lexer cs
-lexer ('!':cs) = TokenNEG : lexer cs
-lexer ('(':cs) = TokenOB : lexer cs
-lexer (')':cs) = TokenCB : lexer cs
-lexer ('{':cs) = TokenOCB : lexer cs
-lexer ('}':cs) = TokenCCB : lexer cs
-lexer (';':cs) = TokenSemicolon : lexer cs
-lexer (',':cs) = TokenComma : lexer cs
-
-lexCharConst cs = TokenCharConst char : lexer rest
-  where (char, rest) = (head cs, drop 2 cs)
-
-lexStrConst cs = TokenStringConst str : lexer (drop 1 rest)
-  where (str,rest) = span (/= '"') cs
-
-lexNum cs = TokenNumConst (read num) : lexer rest
-  where (num,rest) = span isDigit cs
-
-lexVar cs = case var of
-    "string" -> TokenString
-    "char"   -> TokenChar
-    "int"    -> TokenInt
-    "while"  -> TokenWhile
-    "return" -> TokenReturn
-    "if"     -> TokenIf
-    "else"   -> TokenElse
-    "void"   -> TokenVoid
-    _        -> TokenID var
-    : lexer rest
- where (var, rest) = span isAlpha cs
 
 parseError :: [Token] -> a
 parseError a = error $ "Parse error near : " ++ show a

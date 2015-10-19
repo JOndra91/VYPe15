@@ -1,25 +1,46 @@
 {-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module VYPe15.Types.Parser
 where
 
-import           Control.Applicative ( Applicative )
-import           Control.Monad ( Monad )
-import           Control.Monad.Trans.State ( StateT )
-import           Control.Monad.Trans.Class ( MonadTrans )
-import           Data.Attoparsec.ByteString ( Parser )
-import           Data.Functor ( Functor )
+import           Control.Applicative (Applicative(pure, (<*>)))
+import           Control.Monad (Monad((>>=)))
+import           Data.Functor (Functor(fmap))
+import           Data.Function (($))
+import           Data.Int(Int)
+import           Data.String(String)
 import           Text.Show ( Show )
 
+data ParserState 
+    = ParserState
+    { currentLine :: Int
+    } deriving (Show)
 
-data ParserState = ParserState deriving ( Show )
+data ParserResult a
+    = ParseOK a
+    | ParseFail String
+    deriving (Show)
 
-type VYPe15Parser a = VYPe15ParserInternal Parser a
-newtype VYPe15ParserInternal m a = VYPe15ParserInternal 
-  { runVYPe15Parser :: (StateT ParserState m a)} deriving
-  ( Applicative
-  , Monad
-  , Functor
-  , MonadTrans
-  )
+newtype Parser a = Parser {runParser :: (ParserState -> ParserResult a)}
+
+instance Functor Parser where
+    fmap f (Parser x) = Parser $ \s ->
+        case x s of
+            ParseOK b -> ParseOK $ f b
+            ParseFail r -> ParseFail r
+
+instance Applicative Parser where
+    pure v = Parser $ \_  -> ParseOK v 
+    (Parser f) <*> (Parser x) = Parser $ \s ->
+        case x s of
+            ParseOK b -> case f s of
+                ParseOK f' -> ParseOK $ f' b 
+                ParseFail r -> ParseFail r
+            ParseFail r -> ParseFail r
+
+instance Monad Parser where
+    (Parser x) >>= f = Parser $ \s ->
+        case x s of
+            ParseOK a -> runParser (f a) s
+            ParseFail r -> ParseFail r
+            

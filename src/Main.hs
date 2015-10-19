@@ -1,21 +1,21 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE LambdaCase #-}
 
 module Main where
 
-import           Control.Monad ((>>=))
-import           Control.Monad.Trans.State ( evalStateT )
-import           Data.Attoparsec.ByteString ( parse )
-import           Data.ByteString ( ByteString )
-import           Data.Function ( ($), (.) )
-import           System.IO ( IO, print, getContents )
+import           Data.Function (($))
+import           GHC.Err(error)
+import           System.IO (IO, print, getContents)
 
-import           VYPe15.Internal.Parser ( parseVYPe15 )
-import           VYPe15.Internal.Lexer ( alexScanTokens )
-import           VYPe15.Types.Parser ()
-
-sourceCode :: ByteString
-sourceCode = "identifier = 3 + identifier'"
+import           VYPe15.Internal.Parser (parseVYPe15)
+import           VYPe15.Internal.Lexer (alexScanTokens)
+import           VYPe15.Types.Parser 
+    (Parser(runParser), ParserResult(ParseOK, ParseFail), ParserState(ParserState))
 
 main :: IO ()
-main = getContents >>= print . parseVYPe15 . alexScanTokens
+main = do
+    c <- getContents
+    case (runParser $ parseVYPe15 (alexScanTokens c)) (ParserState 1) of
+        ParseOK a -> print a
+        ParseFail s -> error s

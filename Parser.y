@@ -1,15 +1,17 @@
 {
 module VYPe15.Internal.Parser where
 
-import Data.Char
+import Data.Char 
 
-import VYPe15.Types.AST
-import VYPe15.Types.Tokens
+import VYPe15.Types.AST 
+import VYPe15.Types.Tokens (Token(..))
+import VYPe15.Types.Parser (Parser)
 }
 
 %name      parseVYPe15
 %tokentype { Token }
 %error     { parseError }
+%monad { Parser }
 
 %token 
   if          {TokenIf}
