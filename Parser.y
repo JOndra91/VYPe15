@@ -1,12 +1,13 @@
 {
-module VYPe15.Internal.VYPeParser where
+module VYPe15.Internal.Parser where
 
 import Data.Char
 
+import VYPe15.Types.AST
 import VYPe15.Types.Tokens
 }
 
-%name      calc
+%name      parseVYPe15
 %tokentype { Token }
 %error     { parseError }
 
@@ -113,116 +114,6 @@ IdList : {- empty -}          	       { [] }
 Identifier : identifier { Identifier $1 }
 
 {
-
-type Program
-  = [ FunDeclrOrDef ]
-
-data FunDeclrOrDef
-  = FunDeclr Type Identifier Identifier
-  | FunDef Type Identifier Identifier [Stat]
-  deriving (Show)
-
-data Identifier
-  = Identifier String
-  deriving (Show)
-
-data Stat 
-  = Assign Identifier Exp
-  | If Exp [Stat] [Stat]
-  | Return (Maybe Exp)
-  | While Exp [Stat]
-  | VarDef [Identifier]
-  | FuncCall Identifier [Exp]
-  deriving Show
-
-data Exp
-  = OR Exp Exp
-  | AND Exp Exp
-  | Eq Exp Exp
-  | NonEq Exp Exp
-  | Less Exp Exp
-  | Greater Exp Exp
-  | LessEq Exp Exp
-  | GreaterEq Exp Exp
-  | Plus Exp Exp
-  | Minus Exp Exp
-  | Times Exp Exp
-  | Div Exp Exp
-  | Mod Exp Exp
-  | NOT Exp
-  | Cast DataType Exp
-  | ConsNum Int
-  | ConsString String
-  | ConsChar Char
-  | Bracket Exp
-  deriving Show
-
-data DataType 
-  = Int
-  | Char
-  | String
-  deriving Show
-
-data Type
-  = Type DataType
-  | Void
-  deriving (Show)
-
-
-lexer :: String -> [Token]
-lexer [] = []
-lexer (c:cs) 
-      | isSpace c = lexer cs
-      | isAlpha c = lexVar (c:cs)
-      | isDigit c = lexNum (c:cs)
-      | ('"' == c) = lexStrConst cs
-      | ('\'' == c) = lexCharConst cs
-lexer ('=':cs) = TokenAssign : lexer cs
-lexer ('+':cs) = TokenPlus : lexer cs
-lexer ('-':cs) = TokenMinus : lexer cs
-lexer ('*':cs) = TokenTimes : lexer cs
-lexer ('/':cs) = TokenDiv : lexer cs
-lexer ('%':cs) = TokenMod : lexer cs
-lexer ('<':'=':cs) = TokenLEQ : lexer cs
-lexer ('>':'=':cs) = TokenGEQ : lexer cs
-lexer ('=':'=':cs) = TokenEQ : lexer cs
-lexer ('!':'=':cs) = TokenNEQ : lexer cs
-lexer ('|':'|':cs) = TokenOR : lexer cs
-lexer ('&':'&':cs) = TokenAND : lexer cs
-lexer ('<':cs) = TokenLess : lexer cs
-lexer ('>':cs) = TokenGreater: lexer cs
-lexer ('!':cs) = TokenNEG : lexer cs
-lexer ('(':cs) = TokenOB : lexer cs
-lexer (')':cs) = TokenCB : lexer cs
-lexer ('{':cs) = TokenOCB : lexer cs
-lexer ('}':cs) = TokenCCB : lexer cs
-lexer (';':cs) = TokenSemicolon : lexer cs
-lexer (',':cs) = TokenComma : lexer cs
-
-lexCharConst cs = TokenCharConst char : lexer rest
-  where (char, rest) = (head cs, drop 2 cs)
-
-lexStrConst cs = TokenStringConst str : lexer (drop 1 rest)
-  where (str,rest) = span (/= '"') cs
-
-lexNum cs = TokenNumConst (read num) : lexer rest
-  where (num,rest) = span isDigit cs
-
-lexVar cs = case var of
-    "string" -> TokenString
-    "char"   -> TokenChar
-    "int"    -> TokenInt
-    "while"  -> TokenWhile
-    "return" -> TokenReturn
-    "if"     -> TokenIf
-    "else"   -> TokenElse
-    "void"   -> TokenVoid
-    _        -> TokenID var
-    : lexer rest
- where (var, rest) = span isAlpha cs
-
 parseError :: [Token] -> a
 parseError a = error $ "Parse error near : " ++ show a
-
-main = getContents >>= print . calc . lexer
 }

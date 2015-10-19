@@ -15,11 +15,14 @@ cabal-version:       >=1.10
 executable VYPe15
   hs-source-dirs:      src
   main-is:             Main.hs
-  other-modules:       VYPe15.Internal.VYPeGrammar
-                       VYPe15.Internal.Lexer
+  other-modules:       VYPe15.Internal.Lexer
+                       VYPe15.Internal.Parser
+                       VYPe15.Types.AST
+                       VYPe15.Types.Tokens
   default-language:    Haskell2010
   build-depends:       base >= 4.7 && < 5
                        , transformers
                        , attoparsec
                        , bytestring
+                       , array
   ghc-options:         -Wall -fwarn-implicit-prelude -fwarn-missing-import-lists
