@@ -5,8 +5,8 @@ type Program
   = [ FunDeclrOrDef ]
 
 data FunDeclrOrDef
-  = FunDeclr Type Identifier Identifier
-  | FunDef Type Identifier Identifier [Stat]
+  = FunDeclr (Maybe DataType) Identifier (Maybe [DataType])
+  | FunDef (Maybe DataType) Identifier (Maybe [Param]) [Stat]
   deriving (Show)
 
 data Identifier
@@ -20,7 +20,7 @@ data Stat
   | While Exp [Stat]
   | VarDef [Identifier]
   | FuncCall Identifier [Exp]
-  deriving Show
+  deriving (Show)
 
 data Exp
   = OR Exp Exp
@@ -42,15 +42,14 @@ data Exp
   | ConsString String
   | ConsChar Char
   | Bracket Exp
-  deriving Show
+  deriving (Show)
 
 data DataType 
   = Int
   | Char
   | String
-  deriving Show
-
-data Type
-  = Type DataType
-  | Void
   deriving (Show)
+
+data Param 
+    = Param DataType Identifier
+    deriving (Show)

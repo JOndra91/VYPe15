@@ -14,13 +14,13 @@ import VYPe15.Types.Parser (Parser)
 %monad { Parser }
 
 %token 
-  if          {TokenIf}
-  else        {TokenElse}
-  return      {TokenReturn}
-  while       {TokenWhile}
-  ';'         {TokenSemicolon}
-  '{'         {TokenOCB}
-  '}'         {TokenCCB}
+  if          { TokenIf }
+  else        { TokenElse }
+  return      { TokenReturn }
+  while       { TokenWhile }
+  ';'         { TokenSemicolon }
+  '{'         { TokenOCB }
+  '}'         { TokenCCB }
   numConst    { TokenNumConst $$ }
   charConst   { TokenCharConst $$ }
   stringConst { TokenStringConst $$ }
@@ -63,10 +63,17 @@ Program : Program FuncDef           { reverse $ $2:$1 }
         | FuncDef                   { [$1] }
         | FuncDeclr                 { [$1] }
 
-FuncDef : Type Identifier '(' Identifier ')' '{' Stats '}'   { FunDef $1 $2 $4 $7 }
+FuncDef : Type Identifier '(' ParamList ')' '{' Stats '}'   { FunDef $1 $2 (Just $ reverse $4) $7 }
+        | Type Identifier '(' void ')' '{' Stats '}'        { FunDef $1 $2 Nothing $7 }
 
-FuncDeclr : Type Identifier '(' Identifier ')' ';'           { FunDeclr $1 $2 $4 }
+FuncDeclr : Type Identifier '(' TypeParamList ')' ';'   { FunDeclr $1 $2 (Just $ reverse $4) }
+          | Type Identifier '(' void ')' ';'            { FunDeclr $1 $2 Nothing }
 
+ParamList : DataType Identifier { [Param $1 $2] }
+           | ParamList ',' DataType Identifier { (Param $3 $4):$1}
+
+TypeParamList : DataType                    { [$1] }
+              | TypeParamList ',' DataType { $3:$1 }
 
 Stats : {- empty -}    { [] }
       | Stats Stat     { $2 : $1 }
@@ -107,8 +114,8 @@ DataType : int    { Int }
          | char   { Char }
          | string { String }
 
-Type : void	{ Void }
-     | DataType { Type $1 }
+Type : void	{ Nothing }
+     | DataType { Just $1 }
 
 IdList : {- empty -}          	       { [] }
        | IdList ',' Identifier 	       { $3 : $1 }
