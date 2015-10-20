@@ -11,7 +11,7 @@ import           Data.Int(Int)
 import           Data.String(String)
 import           Text.Show ( Show )
 
-data ParserState 
+data ParserState
     = ParserState
     { currentLine :: Int
     } deriving (Show)
@@ -30,11 +30,11 @@ instance Functor Parser where
             ParseFail r -> ParseFail r
 
 instance Applicative Parser where
-    pure v = Parser $ \_  -> ParseOK v 
+    pure v = Parser $ \_  -> ParseOK v
     (Parser f) <*> (Parser x) = Parser $ \s ->
         case x s of
             ParseOK b -> case f s of
-                ParseOK f' -> ParseOK $ f' b 
+                ParseOK f' -> ParseOK $ f' b
                 ParseFail r -> ParseFail r
             ParseFail r -> ParseFail r
 
@@ -43,4 +43,3 @@ instance Monad Parser where
         case x s of
             ParseOK a -> runParser (f a) s
             ParseFail r -> ParseFail r
-            
