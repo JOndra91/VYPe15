@@ -11,31 +11,31 @@ $digit            = 0-9
 $alpha            = [a-zA-Z]
 $ascii            = [\x00-\x7f]
 $char             = [\x20\x21\x23-\x26\x28-\x7f]
+$new_line         = \n
+$any              = [.\n]
 
 
 @numConst         = $digit+
 @charConst        = "'"$char"'"
-@stringConst      = "\""$ascii*"\""
--- FIX THIS!
-@onelineComment   = "//".*$white
-@multilineComment = "/*".*"*/"
--- FIX THIS!
-@identifier       = $alpha+
+@stringConst      = "\""$ascii*"\"" -- Needs state based matching.
+@onelineComment   = "//".*$new_line
+@multilineComment = "/*".*"*/" -- Needs state based matching.
+@identifier       = $alpha[_$digit$alpha]*
 
 
 
-toknes :-
+tokens :-
    $white        ;
-   @onelineComment ; 
+   @onelineComment ;
    @multilineComment ;
-   if            {\s -> TokenIf }
-   else          {\s -> TokenElse } 
-   return        {\s -> TokenReturn }
-   while         {\s -> TokenWhile }
-   string        {\s -> TokenString }
-   char          {\s -> TokenChar }
-   int           {\s -> TokenInt }
-   void	         {\s -> TokenVoid }
+   "if"          {\s -> TokenIf }
+   "else"        {\s -> TokenElse }
+   "return"      {\s -> TokenReturn }
+   "while"       {\s -> TokenWhile }
+   "string"      {\s -> TokenString }
+   "char"        {\s -> TokenChar }
+   "int"         {\s -> TokenInt }
+   "void"        {\s -> TokenVoid }
    ";"           {\s -> TokenSemicolon }
    "{"           {\s -> TokenOCB }
    "}"           {\s -> TokenCCB }
@@ -52,7 +52,7 @@ toknes :-
    "=="          {\s -> TokenEQ }
    "!="          {\s -> TokenNEQ }
    "&&"          {\s -> TokenAND }
-   "||"          {\s -> TokenOR } 
+   "||"          {\s -> TokenOR }
    "!"           {\s -> TokenNEG }
    "("           {\s -> TokenOB }
    ")"           {\s -> TokenCB }
