@@ -3,13 +3,15 @@
 module VYPe15.Types.Parser
 where
 
-import           Control.Applicative (Applicative(pure, (<*>)))
-import           Control.Monad (Monad((>>=)))
-import           Data.Functor (Functor(fmap))
-import           Data.Function (($))
-import           Data.Int(Int)
-import           Data.String(String)
-import           Text.Show ( Show )
+import Control.Applicative (Applicative(pure, (<*>)))
+import Control.Monad (Monad((>>=)))
+import Data.Functor (Functor(fmap))
+import Data.Function (($))
+import Data.Int(Int)
+import Data.String(String)
+import Text.Show ( Show )
+
+import VYPe15.Types.SymbolTable (SymbolTable)
 
 data ParserState
     = ParserState
@@ -21,7 +23,7 @@ data ParserResult a
     | ParseFail String
     deriving (Show)
 
-newtype Parser a = Parser {runParser :: (ParserState -> ParserResult a)}
+newtype Parser a = Parser {runParser :: (ParserState -> SymbolTable -> ParserResult a)}
 
 instance Functor Parser where
     fmap f (Parser x) = Parser $ \s ->

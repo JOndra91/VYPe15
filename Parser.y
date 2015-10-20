@@ -3,6 +3,7 @@ module VYPe15.Internal.Parser where
 
 import Data.Char 
 
+import VYPe15.Internal.Semantics ()
 import VYPe15.Types.AST 
 import VYPe15.Types.Tokens (Token(..))
 import VYPe15.Types.Parser (Parser)
