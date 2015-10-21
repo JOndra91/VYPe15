@@ -18,7 +18,7 @@ data Stat
   | If Exp [Stat] [Stat]
   | Return (Maybe Exp)
   | While Exp [Stat]
-  | VarDef [Identifier]
+  | VarDef DataType [Identifier]
   | FuncCall Identifier [Exp]
   deriving (Show)
 

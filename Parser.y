@@ -84,7 +84,7 @@ Stat  : Identifier '=' Exp ';'                            { Assign $1 $3 }
       | return Exp ';'                                    { Return (Just $2) }
       | return ';'                                        { Return Nothing }
       | while '(' Exp ')' '{' Stats '}'                   { While $3 (reverse $6) }
-      | DataType Identifier IdList ';'                    { VarDef ($2:$3) }
+      | DataType Identifier IdList ';'                    { VarDef $1 (reverse $ $2:$3) }
       | Identifier '(' ExpList ')' ';'                    { FuncCall $1 (reverse $3) }
 
 ExpList : {- empty -}     { [] }
