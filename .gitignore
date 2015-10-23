@@ -5,5 +5,3 @@
 cabal.sandbox.config
 .cabal-sandbox
 dist
-src/VYPe15/Internal/Lexer.hs
-src/VYPe15/Internal/Parser.hs
