@@ -4,7 +4,7 @@ module VYPe15.Types.Parser
 where
 
 import Control.Applicative (Applicative(pure, (<*>)))
-import Control.Monad (Monad((>>=)))
+import Control.Monad (Monad((>>=), return))
 import Data.Default (Default(def))
 import Data.Functor (Functor(fmap))
 import Data.Function (($))
@@ -36,7 +36,8 @@ instance Functor Parser where
             ParseFail r -> ParseFail r
 
 instance Applicative Parser where
-    pure v = Parser $ \_ _ -> ParseOK v
+    pure v = Parser $ \s t -> ParseOK v
+
     (Parser f) <*> (Parser x) = Parser $ \s t ->
         case x s t of
             ParseOK b -> case f s t of
@@ -49,3 +50,4 @@ instance Monad Parser where
         case x s t of
             ParseOK a -> runParser (f a) s t
             ParseFail r -> ParseFail r
+    return = pure

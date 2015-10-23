@@ -15,8 +15,7 @@ cabal-version:       >=1.10
 executable VYPe15
   hs-source-dirs:      src
   main-is:             Main.hs
-  other-modules:       VYPe15.Internal.Lexer
-                       VYPe15.Internal.Parser
+  other-modules:       VYPe15.Internal.Parser
                        VYPe15.Internal.Semantics
                        VYPe15.Types.AST
                        VYPe15.Types.Tokens
@@ -28,21 +27,8 @@ executable VYPe15
                        , bytestring
                        , containers
                        , data-default
+                       , parsec
                        , transformers
                        , vector
   ghc-options:         -Wall -fwarn-implicit-prelude -fwarn-missing-import-lists
 
-executable lexer
-  hs-source-dirs:      src
-  main-is:             Lexer.hs
-  other-modules:       VYPe15.Internal.Lexer
-                       VYPe15.Internal.Parser
-                       VYPe15.Types.AST
-                       VYPe15.Types.Tokens
-                       VYPe15.Types.Parser
-  default-language:    Haskell2010
-  build-depends:       base >= 4.7 && < 5
-                       , transformers
-                       , bytestring
-                       , array
-  ghc-options:         -Wall -fwarn-implicit-prelude -fwarn-missing-import-lists

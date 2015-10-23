@@ -8,6 +8,7 @@ import Data.Map.Lazy as M (Map, empty)
 import Data.Maybe(Maybe)
 import Data.String (String)
 import Data.Vector as V (Vector, empty)
+import Text.Show (Show)
 
 import VYPe15.Types.AST (DataType)
 
@@ -16,6 +17,7 @@ import VYPe15.Types.AST (DataType)
 data SymbolState a
     = Defined a
     | Declared a
+    deriving (Show)
 
 type VariableTable = M.Map String DataType
 type FunctionTable = Map String (SymbolState Function)
@@ -26,6 +28,7 @@ data SymbolTable = SymbolTable
     { identifierTable :: V.Vector VariableTable
     , functionTable :: FunctionTable
     }
+    deriving (Show)
 
 instance Default SymbolTable where
     def = SymbolTable V.empty M.empty

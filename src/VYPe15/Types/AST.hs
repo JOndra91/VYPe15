@@ -1,8 +1,17 @@
+{-# LANGUAGE NoImplicitPrelude #-}
+
 module VYPe15.Types.AST
 where
 
+import Data.Maybe (Maybe)
+import Text.Show (Show)
+import Data.Char (Char)
+import Data.String (String)
+
+import Prelude (Integer)
+
 type Program
-  = [ FunDeclrOrDef ]
+  = [FunDeclrOrDef]
 
 data FunDeclrOrDef
   = FunDeclr (Maybe DataType) Identifier (Maybe [DataType])
@@ -38,16 +47,17 @@ data Exp
   | Mod Exp Exp
   | NOT Exp
   | Cast DataType Exp
-  | ConsNum Int
+  | ConsNum Integer
   | ConsString String
   | ConsChar Char
   | Bracket Exp
+  | IdentifierExp String
   deriving (Show)
 
 data DataType 
-  = Int
-  | Char
-  | String
+  = DInt
+  | DChar
+  | DString
   deriving (Show)
 
 data Param 
