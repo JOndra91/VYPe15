@@ -6,7 +6,7 @@
 module VYPe15.Internal.Semantics
 where
 
-import Control.Monad (return, mapM_, (>>), fail)
+import Control.Monad (return, mapM_, (>>), fail, void)
 import Control.Monad.Except (runExceptT)
 import Control.Monad.State.Class(put, modify, get)
 import Control.Monad.Reader.Class(ask)
@@ -14,13 +14,15 @@ import Control.Monad.Trans.Reader (runReaderT)
 import Control.Monad.Trans.State (evalState)
 import Data.Bool(Bool(True,False))
 import Data.Either (Either)
-import Data.Foldable (foldl)
+import Data.Eq ((==))
+import Data.Foldable (foldl, and)
 import Data.Function (($), (.))
 import Data.List (filter, elem, head, tail)
 import Data.Maybe(Maybe(Just,Nothing))
-import Data.Map as M (insert, empty, unions, keys)
+import Data.Map as M (insert, empty, unions, keys, (!))
 import Data.Monoid ((<>))
 import Data.String (String)
+import Text.Show(show)
 
 import VYPe15.Types.AST
 import VYPe15.Types.Semantics(SemanticAnalyzer(runSemAnalyzer), SError)
@@ -77,20 +79,20 @@ checkStatements ss = pushNewVarTable >> mapM_ checkStatement ss >> popVarTable
 
     checkStatement = \case 
         Assign (Identifier i) e -> do
-            isIdDefined i
-            checkExpression e
+            void $ isIdDefined i
+            void $ checkExpression e
         VarDef d i -> do
             putVar i d
         If e s s' -> do 
-            checkExpression e
+            void $ checkExpression e
             checkStatements s
             checkStatements s'
         Return (Just e) -> do
-            checkExpression e
+            void $ checkExpression e
         Return Nothing -> do
             return ()
         While e s -> do
-            checkExpression e
+            void $ checkExpression e
             checkStatements s
         FuncCall (Identifier i) es -> do
             isFunctionDefined i
@@ -109,35 +111,54 @@ isFunctionDefined i = do
     then return ()
     else fail $ "Function '" <> i <> "' is not defined." 
 
-isIdDefined :: String -> SemanticAnalyzer ()
+isIdDefined :: String -> SemanticAnalyzer DataType
 isIdDefined i = do
     varTable <- get
     if i `elem` (M.keys $ M.unions varTable)
-    then return ()
+    then return (M.unions varTable M.! i)
     else fail $ "Identifier '" <> i <> "' is not defined."
          
-checkExpression :: Exp -> SemanticAnalyzer ()
+checkExpression :: Exp -> SemanticAnalyzer DataType
 checkExpression = \case
-    OR e1 e2 -> checkExpression e1 >> checkExpression e2
-    AND e1 e2 -> checkExpression e1 >> checkExpression e2
-    Eq e1 e2 -> checkExpression e1 >> checkExpression e2
-    NonEq e1 e2 -> checkExpression e1 >> checkExpression e2
-    Less e1 e2 -> checkExpression e1 >> checkExpression e2
-    Greater e1 e2 -> checkExpression e1 >> checkExpression e2
-    LessEq e1 e2 -> checkExpression e1 >> checkExpression e2
-    GreaterEq e1 e2 -> checkExpression e1 >> checkExpression e2
-    Plus e1 e2 -> checkExpression e1 >> checkExpression e2
-    Minus e1 e2 -> checkExpression e1 >> checkExpression e2
-    Times e1 e2 -> checkExpression e1 >> checkExpression e2
-    Div e1 e2 -> checkExpression e1 >> checkExpression e2
-    Mod e1 e2 -> checkExpression e1 >> checkExpression e2
-    NOT e -> checkExpression e
+    OR e1 e2 -> matchLogical "||" e1 e2
+    AND e1 e2 -> matchLogical "||" e1 e2
+    Eq e1 e2 -> matchRelation "==" e1 e2
+    NonEq e1 e2 -> matchRelation "!=" e1 e2
+    Less e1 e2 -> matchRelation "<" e1 e2
+    Greater e1 e2 -> matchRelation ">" e1 e2
+    LessEq e1 e2 -> matchRelation "<=" e1 e2
+    GreaterEq e1 e2 -> matchRelation ">=" e1 e2
+    Plus e1 e2 -> matchNumeric "+" e1 e2
+    Minus e1 e2 -> matchNumeric "-" e1 e2
+    Times e1 e2 -> matchNumeric "*" e1 e2
+    Div e1 e2 -> matchNumeric "/" e1 e2
+    Mod e1 e2 -> matchNumeric "%" e1 e2
+    NOT e -> do
+        t <- checkExpression e
+        if and [t == DInt] then return DInt
+        else fail $ cannotMatchMsg' t
     Cast _ e -> checkExpression e
-    ConsNum _ -> return ()
-    ConsString _ -> return ()
-    ConsChar _ ->  return ()
+    ConsNum _ -> return DInt
+    ConsString _ -> return DString
+    ConsChar _ ->  return DChar
     Bracket e -> checkExpression e
     FuncCallExp (Identifier i) es -> do
         isFunctionDefined i
         mapM_ checkExpression es
+        return DInt
     IdentifierExp i -> isIdDefined i
+  where
+    matchLogical op e1 e2 = do 
+        t1 <- checkExpression e1 
+        t2 <- checkExpression e2
+        if and [t1 == t2, t1 == DInt] then return DInt
+        else fail $ cannotMatchMsg op t1 t2
+    matchRelation op e1 e2 = do
+        t1 <- checkExpression e1 
+        t2 <- checkExpression e2
+        if and [t1 == t2] then return DInt
+        else fail $ cannotMatchMsg op t1 t2
+    matchNumeric = matchLogical
+    cannotMatchMsg op t1 t2 = 
+        "Cannot match' " <> show t1 <> "' with '" <> show t2 <> "' in '" <> op <> "' expression."
+    cannotMatchMsg' t = "Cannot match '" <> show t <> "' with int in '!' expression."

@@ -3,6 +3,7 @@
 module VYPe15.Types.AST
 where
 
+import Data.Eq (Eq)
 import Data.Maybe (Maybe)
 import Text.Show (Show)
 import Data.Char (Char)
@@ -59,7 +60,7 @@ data DataType
   = DInt
   | DChar
   | DString
-  deriving (Show)
+  deriving (Show, Eq)
 
 data Param 
     = Param DataType Identifier
