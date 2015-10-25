@@ -105,7 +105,7 @@ checkStatements ss = pushNewVarTable >> mapM_ checkStatement ss >> popVarTable
 isFunctionDefined :: String -> SemanticAnalyzer ()
 isFunctionDefined i = do
     ft <- ask
-    if i `elem` M.keys ft 
+    if i `elem` M.keys ft
     then return ()
     else fail $ "Function '" <> i <> "' is not defined." 
 
@@ -137,4 +137,7 @@ checkExpression = \case
     ConsString _ -> return ()
     ConsChar _ ->  return ()
     Bracket e -> checkExpression e
-    (IdentifierExp i) -> isIdDefined i
+    FuncCallExp (Identifier i) es -> do
+        isFunctionDefined i
+        mapM_ checkExpression es
+    IdentifierExp i -> isIdDefined i

@@ -1,4 +1,5 @@
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# OPTIONS_GHC -fno-warn-missing-signatures #-}
 
 module VYPe15.Internal.Lexer
 where

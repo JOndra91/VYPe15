@@ -12,7 +12,7 @@ import Data.Functor.Identity (Identity)
 import Data.Maybe (Maybe(Just,Nothing))
 import Data.String (String)
 
-import Text.Parsec ((<?>), eof, (<|>), many, try)
+import Text.Parsec ((<?>), eof, (<|>), many, try, ParsecT)
 import Text.Parsec.Expr (buildExpressionParser, Operator(Infix, Prefix), Assoc(AssocLeft), OperatorTable)
 import Text.Parsec.String (Parser)
 
@@ -30,7 +30,7 @@ import VYPe15.Internal.Lexer
     , m_charLit
     )
 import VYPe15.Types.AST (Exp(Plus, Minus, Times, Div, Mod, Less, Greater, LessEq, GreaterEq, Eq, NonEq, AND, OR
-    , IdentifierExp, ConsChar, ConsString, ConsNum, NOT, Cast)
+    , IdentifierExp, ConsChar, ConsString, ConsNum, NOT, Cast, FuncCallExp)
     , Stat(Assign, While, If, Return, FuncCall, VarDef)
     , Identifier(Identifier)
     , Program, FunDeclrOrDef(FunDeclr, FunDef)
@@ -65,11 +65,15 @@ table = [
         ]
 
 term :: Parser Exp
-term = m_parens exprparser 
+term = funcCall <|> m_parens exprparser 
     <|> IdentifierExp <$> m_identifier
     <|> ConsChar <$> m_charLit
     <|> ConsString <$> m_stringLit
     <|> ConsNum <$> m_integer
+  where
+    funcCall = try $ FuncCallExp 
+        <$> fmap Identifier m_identifier
+        <*> m_parens (many exprparser)
 
 statparser :: Parser [Stat]
 statparser = many (statement <* m_semi)
@@ -108,7 +112,7 @@ statparser = many (statement <* m_semi)
             <$> dataTypeParser
             <*> (m_commaSep $ fmap Identifier m_identifier)
             
---dataTypeParser :: Parser DataType
+dataTypeParser :: ParsecT String u Identity DataType
 dataTypeParser = return DInt <* m_reserved "int" 
                 <|> return DChar <* m_reserved "char"
                 <|> return DString <* m_reserved "string"

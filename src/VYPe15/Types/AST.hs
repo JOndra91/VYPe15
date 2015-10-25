@@ -51,6 +51,7 @@ data Exp
   | ConsString String
   | ConsChar Char
   | Bracket Exp
+  | FuncCallExp Identifier [Exp]
   | IdentifierExp String
   deriving (Show)
 
