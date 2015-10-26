@@ -4,6 +4,8 @@
 module VYPe15.Internal.Lexer
 where
 
+import Data.Bool (Bool(False))
+
 import Text.Parsec (alphaNum, char, letter, oneOf, (<|>))
 import Text.Parsec.Language (LanguageDef, emptyDef)
 import Text.Parsec.Token
@@ -17,6 +19,8 @@ def :: LanguageDef st
 def = emptyDef
     { commentStart = "/*"
     , commentEnd = "*/"
+    , commentLine = "//"
+    , nestedComments = False
     , identStart = letter <|> char '_'
     , identLetter = alphaNum <|> char '_'
     , opStart = oneOf "=+-*/%<>!&|"
