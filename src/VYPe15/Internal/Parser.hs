@@ -1,6 +1,6 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module VYPe15.Internal.Parser 
+module VYPe15.Internal.Parser
     (parseVYPe15)
 where
 
@@ -16,17 +16,17 @@ import Text.Parsec ((<?>), eof, (<|>), many, try, ParsecT)
 import Text.Parsec.Expr (buildExpressionParser, Operator(Infix, Prefix), Assoc(AssocLeft), OperatorTable)
 import Text.Parsec.String (Parser)
 
-import VYPe15.Internal.Lexer    
-    ( m_parens                                        
+import VYPe15.Internal.Lexer
+    ( m_parens
     , m_braces
-    , m_identifier                                
+    , m_identifier
     , m_commaSep1
     , m_commaSep
     , m_semi
-    , m_reservedOp                                
-    , m_reserved                                    
-    , m_integer                                       
-    , m_stringLit                               
+    , m_reservedOp
+    , m_reserved
+    , m_integer
+    , m_stringLit
     , m_charLit
     )
 import VYPe15.Types.AST (Exp(Plus, Minus, Times, Div, Mod, Less, Greater, LessEq, GreaterEq, Eq, NonEq, AND, OR
@@ -42,7 +42,7 @@ exprparser :: Parser Exp
 exprparser = buildExpressionParser table term <?> "expression"
 
 table :: OperatorTable String u Identity Exp
-table = [ 
+table = [
           [ Infix (m_reservedOp "||" >> return (OR)) AssocLeft ]
         , [ Infix (m_reservedOp "&&" >> return (AND)) AssocLeft ]
         , [ Infix (m_reservedOp "==" >> return (Eq)) AssocLeft
@@ -65,20 +65,20 @@ table = [
         ]
 
 term :: Parser Exp
-term = funcCall <|> m_parens exprparser 
+term = funcCall <|> m_parens exprparser
     <|> IdentifierExp <$> m_identifier
     <|> ConsChar <$> m_charLit
     <|> ConsString <$> m_stringLit
     <|> ConsNum <$> m_integer
   where
-    funcCall = try $ FuncCallExp 
+    funcCall = try $ FuncCallExp
         <$> fmap Identifier m_identifier
         <*> m_parens (many exprparser)
 
 statparser :: Parser [Stat]
 statparser = many statement
   where
-    statement = 
+    statement =
         try assignStatement
         <|> whileStatement
         <|> ifStatement
@@ -86,38 +86,38 @@ statparser = many statement
         <|> funCallStatement
         <|> varDefStatement
       where
-        assignStatement = Assign 
-            <$> fmap Identifier m_identifier 
+        assignStatement = Assign
+            <$> fmap Identifier m_identifier
             <*  m_reservedOp "="
             <*> exprparser
             <* m_semi
-        
+
         whileStatement = m_reserved "while" >> While
             <$> m_parens exprparser
             <*> m_braces statparser
-        
+
         ifStatement = m_reserved "if" >> If
             <$> m_parens exprparser
             <*> m_braces statparser
             <*  m_reserved "else"
             <*> m_braces statparser
 
-        returnStatement = m_reserved "return" >> Return 
+        returnStatement = m_reserved "return" >> Return
             <$> (fmap Just exprparser <|> return Nothing)
             <* m_semi
 
-        funCallStatement = FuncCall 
-            <$> fmap Identifier m_identifier 
+        funCallStatement = FuncCall
+            <$> fmap Identifier m_identifier
             <*> (m_parens $ m_commaSep exprparser)
             <* m_semi
-    
+
         varDefStatement = VarDef
             <$> dataTypeParser
             <*> (m_commaSep $ fmap Identifier m_identifier)
             <* m_semi
-            
+
 dataTypeParser :: ParsecT String u Identity DataType
-dataTypeParser = return DInt <* m_reserved "int" 
+dataTypeParser = return DInt <* m_reserved "int"
                 <|> return DChar <* m_reserved "char"
                 <|> return DString <* m_reserved "string"
 
