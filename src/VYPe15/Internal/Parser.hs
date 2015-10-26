@@ -53,24 +53,24 @@ exprparser = buildExpressionParser table term <?> "expression"
 
 table :: OperatorTable String u Identity Exp
 table = [
-          [ Infix (m_reservedOp "||" >> return (OR)) AssocLeft ]
-        , [ Infix (m_reservedOp "&&" >> return (AND)) AssocLeft ]
-        , [ Infix (m_reservedOp "==" >> return (Eq)) AssocLeft
-          , Infix (m_reservedOp "!=" >> return (NonEq)) AssocLeft
+          [ Infix (m_reservedOp "||" >> return OR) AssocLeft ]
+        , [ Infix (m_reservedOp "&&" >> return AND) AssocLeft ]
+        , [ Infix (m_reservedOp "==" >> return Eq) AssocLeft
+          , Infix (m_reservedOp "!=" >> return NonEq) AssocLeft
           ]
-        , [ Infix (m_reservedOp "<" >> return (Less)) AssocLeft
-          , Infix (m_reservedOp ">" >> return (Greater)) AssocLeft
-          , Infix (m_reservedOp "<=" >> return (LessEq)) AssocLeft
-          , Infix (m_reservedOp ">=" >> return (GreaterEq)) AssocLeft
+        , [ Infix (m_reservedOp "<" >> return Less) AssocLeft
+          , Infix (m_reservedOp ">" >> return Greater) AssocLeft
+          , Infix (m_reservedOp "<=" >> return LessEq) AssocLeft
+          , Infix (m_reservedOp ">=" >> return GreaterEq) AssocLeft
           ]
-        , [ Infix (m_reservedOp "*" >> return (Times)) AssocLeft
-          , Infix (m_reservedOp "/" >> return (Div)) AssocLeft
-          , Infix (m_reservedOp "%" >> return (Mod)) AssocLeft
+        , [ Infix (m_reservedOp "*" >> return Times) AssocLeft
+          , Infix (m_reservedOp "/" >> return Div) AssocLeft
+          , Infix (m_reservedOp "%" >> return Mod) AssocLeft
           ]
-        , [ Infix (m_reservedOp "+" >> return (Plus)) AssocLeft
-          , Infix (m_reservedOp "-" >> return (Minus)) AssocLeft
+        , [ Infix (m_reservedOp "+" >> return Plus) AssocLeft
+          , Infix (m_reservedOp "-" >> return Minus) AssocLeft
           ]
-        , [ Prefix (m_reservedOp "!" >> return (NOT)) ]
+        , [ Prefix (m_reservedOp "!" >> return NOT) ]
         , [ Prefix (Cast <$> m_parens dataTypeParser) ]
         ]
 
@@ -118,12 +118,12 @@ statparser = many statement
 
         funCallStatement = FuncCall
             <$> fmap Identifier m_identifier
-            <*> (m_parens $ m_commaSep exprparser)
+            <*> m_parens (m_commaSep exprparser)
             <* m_semi
 
         varDefStatement = VarDef
             <$> dataTypeParser
-            <*> (m_commaSep $ fmap Identifier m_identifier)
+            <*> m_commaSep (fmap Identifier m_identifier)
             <* m_semi
 
 dataTypeParser :: ParsecT String u Identity DataType
