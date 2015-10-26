@@ -100,7 +100,7 @@ statparser = many statement
             <$> fmap Identifier m_identifier
             <*  m_reservedOp "="
             <*> exprparser
-            <* m_semi
+            <*  m_semi
 
         whileStatement = m_reserved "while" >> While
             <$> m_parens exprparser
@@ -114,22 +114,22 @@ statparser = many statement
 
         returnStatement = m_reserved "return" >> Return
             <$> (fmap Just exprparser <|> return Nothing)
-            <* m_semi
+            <*  m_semi
 
         funCallStatement = FuncCall
             <$> fmap Identifier m_identifier
             <*> m_parens (m_commaSep exprparser)
-            <* m_semi
+            <*  m_semi
 
         varDefStatement = VarDef
             <$> dataTypeParser
             <*> m_commaSep (fmap Identifier m_identifier)
-            <* m_semi
+            <*  m_semi
 
 dataTypeParser :: ParsecT String u Identity DataType
 dataTypeParser = return DInt <* m_reserved "int"
-                <|> return DChar <* m_reserved "char"
-                <|> return DString <* m_reserved "string"
+             <|> return DChar <* m_reserved "char"
+             <|> return DString <* m_reserved "string"
 
 typeParamsParser :: Parser (Maybe [DataType])
 typeParamsParser = Just <$> m_commaSep1 dataTypeParser <|> voidParser
@@ -151,7 +151,7 @@ programParser = many (try parseFunDeclr <|> parseFunDef)
         <$> returnTypeParser
         <*> fmap Identifier m_identifier
         <*> m_parens typeParamsParser
-        <* m_semi
+        <*  m_semi
 
     parseFunDef = FunDef
         <$> returnTypeParser
