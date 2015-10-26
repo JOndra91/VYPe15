@@ -144,7 +144,7 @@ programParser = many (try parseFunDeclr <|> parseFunDef)
         <* m_semi
 
     parseFunDef = FunDef
-        <$>returnTypeParser
+        <$> returnTypeParser
         <*> fmap Identifier m_identifier
         <*> m_parens paramsParser
         <*> m_braces statparser
