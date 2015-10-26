@@ -28,9 +28,9 @@ executable VYPe15
                        , bytestring
                        , containers
                        , data-default
-                       , mtl
+                       , mtl >=2.2.1 && <2.3
+                       -- We need mtl at least 2.2.1 for Control.Monad.Except
                        , parsec
                        , transformers
                        , vector
   ghc-options:         -Wall -fwarn-implicit-prelude -fwarn-missing-import-lists
-
