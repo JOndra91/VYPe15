@@ -76,7 +76,7 @@ term = funcCall <|> m_parens exprparser
         <*> m_parens (many exprparser)
 
 statparser :: Parser [Stat]
-statparser = many (statement <* m_semi)
+statparser = many statement
   where
     statement = 
         try assignStatement
@@ -90,6 +90,7 @@ statparser = many (statement <* m_semi)
             <$> fmap Identifier m_identifier 
             <*  m_reservedOp "="
             <*> exprparser
+            <* m_semi
         
         whileStatement = m_reserved "while" >> While
             <$> m_parens exprparser
@@ -103,14 +104,17 @@ statparser = many (statement <* m_semi)
 
         returnStatement = m_reserved "return" >> Return 
             <$> (fmap Just exprparser <|> return Nothing)
+            <* m_semi
 
         funCallStatement = FuncCall 
             <$> fmap Identifier m_identifier 
             <*> (m_parens $ m_commaSep exprparser)
+            <* m_semi
     
         varDefStatement = VarDef
             <$> dataTypeParser
             <*> (m_commaSep $ fmap Identifier m_identifier)
+            <* m_semi
             
 dataTypeParser :: ParsecT String u Identity DataType
 dataTypeParser = return DInt <* m_reserved "int" 

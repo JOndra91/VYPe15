@@ -5,9 +5,9 @@ where
 
 import Data.Eq (Eq)
 import Data.Maybe (Maybe)
-import Text.Show (Show)
 import Data.Char (Char)
 import Data.String (String)
+import Text.Show (Show(show))
 
 import Prelude (Integer)
 
@@ -60,7 +60,12 @@ data DataType
   = DInt
   | DChar
   | DString
-  deriving (Show, Eq)
+  deriving (Eq)
+
+instance Show DataType where
+    show DInt = "int"
+    show DChar = "char"
+    show DString = "string"
 
 data Param 
     = Param DataType Identifier
