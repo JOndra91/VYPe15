@@ -4,38 +4,48 @@ module VYPe15.Internal.Parser
     (parseVYPe15)
 where
 
-import Control.Applicative((<*), (<$>), (<*>))
-import Control.Monad(return, (>>))
+import Control.Applicative ((<$>), (<*), (<*>))
+import Control.Monad (return, (>>))
 import Data.Function (($))
 import Data.Functor (fmap)
 import Data.Functor.Identity (Identity)
-import Data.Maybe (Maybe(Just,Nothing))
+import Data.Maybe (Maybe(Just, Nothing))
 import Data.String (String)
 
-import Text.Parsec ((<?>), eof, (<|>), many, try, ParsecT)
-import Text.Parsec.Expr (buildExpressionParser, Operator(Infix, Prefix), Assoc(AssocLeft), OperatorTable)
+import Text.Parsec (ParsecT, eof, many, try, (<?>), (<|>))
+import Text.Parsec.Expr
+    ( Assoc(AssocLeft)
+    , Operator(Infix, Prefix)
+    , OperatorTable
+    , buildExpressionParser
+    )
 import Text.Parsec.String (Parser)
 
 import VYPe15.Internal.Lexer
-    ( m_parens
-    , m_braces
-    , m_identifier
-    , m_commaSep1
-    , m_commaSep
-    , m_semi
-    , m_reservedOp
-    , m_reserved
-    , m_integer
-    , m_stringLit
+    ( m_braces
     , m_charLit
+    , m_commaSep
+    , m_commaSep1
+    , m_identifier
+    , m_integer
+    , m_parens
+    , m_reserved
+    , m_reservedOp
+    , m_semi
+    , m_stringLit
     )
-import VYPe15.Types.AST (Exp(Plus, Minus, Times, Div, Mod, Less, Greater, LessEq, GreaterEq, Eq, NonEq, AND, OR
-    , IdentifierExp, ConsChar, ConsString, ConsNum, NOT, Cast, FuncCallExp)
-    , Stat(Assign, While, If, Return, FuncCall, VarDef)
+import VYPe15.Types.AST
+    ( DataType(DChar, DInt, DString)
+    , Exp
+      ( AND, Cast, ConsChar, ConsNum, ConsString, Div, Eq, FuncCallExp, Greater
+      , GreaterEq, IdentifierExp, Less, LessEq, Minus, Mod, NOT, NonEq, OR, Plus
+      , Times
+      )
+    , FunDeclrOrDef(FunDeclr, FunDef)
     , Identifier(Identifier)
-    , Program, FunDeclrOrDef(FunDeclr, FunDef)
-    , DataType(DInt, DChar, DString)
     , Param(Param)
+    , Program
+    , Stat(Assign, FuncCall, If, Return, VarDef, While)
     )
 
 exprparser :: Parser Exp

@@ -10,11 +10,32 @@ import Data.Monoid ((<>))
 import Text.Parsec (alphaNum, char, letter, oneOf, (<|>))
 import Text.Parsec.Language (LanguageDef, emptyDef)
 import Text.Parsec.Token
-    (GenTokenParser(TokenParser), braces, charLiteral, commaSep, commaSep1,
-    commentEnd, commentLine, commentStart, identLetter, identStart, identifier,
-    integer, makeTokenParser, nestedComments, opLetter, opStart, parens,
-    reserved, reservedNames, reservedOp, reservedOpNames, semi, semiSep,
-    stringLiteral, whiteSpace)
+    ( GenTokenParser(TokenParser)
+    , braces
+    , charLiteral
+    , commaSep
+    , commaSep1
+    , commentEnd
+    , commentLine
+    , commentStart
+    , identLetter
+    , identStart
+    , identifier
+    , integer
+    , makeTokenParser
+    , nestedComments
+    , opLetter
+    , opStart
+    , parens
+    , reserved
+    , reservedNames
+    , reservedOp
+    , reservedOpNames
+    , semi
+    , semiSep
+    , stringLiteral
+    , whiteSpace
+    )
 
 def :: LanguageDef st
 def = emptyDef
