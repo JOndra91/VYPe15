@@ -5,6 +5,7 @@ module VYPe15.Internal.Lexer
 where
 
 import Data.Bool (Bool(False))
+import Data.Monoid ((<>))
 
 import Text.Parsec (alphaNum, char, letter, oneOf, (<|>))
 import Text.Parsec.Language (LanguageDef, emptyDef)
@@ -30,7 +31,9 @@ def = emptyDef
     }
   where
     operators = ["=", "+", "-", "*", "/", "%", "<", ">", "<=", ">=", "==", "!=", "&&", "||", "!"]
-    names = ["if", "else", "return", "while", "string", "char", "int", "void"]
+    names = ["if", "else", "return", "while", "string", "char", "int", "void"] <> vypeReserved
+    -- | There are reserved keywords according to project specification (Chapter 3.1)
+    vypeReserved = ["break", "continue", "for", "short", "unsigned"]
 
 TokenParser { parens = m_parens
             , braces = m_braces
