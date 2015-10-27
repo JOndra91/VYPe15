@@ -16,7 +16,7 @@ import Data.Bool(Bool(True,False))
 import Data.Either (Either)
 import Data.Eq ((==))
 import Data.Foldable (foldl, and)
-import Data.Function (($), (.))
+import Data.Function (($), (.), flip)
 import Data.Functor (fmap)
 import Data.List (filter, elem, head, tail)
 import Data.Maybe(Maybe(Just,Nothing), fromMaybe)
@@ -26,15 +26,27 @@ import Data.String (String)
 import Data.Tuple (snd, fst)
 import Text.Show(show)
 
---import Debug.Trace(traceShowId)
-
 import VYPe15.Types.AST
+    ( DataType(DChar, DInt, DString)
+    , Exp
+      ( AND, Cast, ConsChar, ConsNum, ConsString, Div, Eq, FuncCallExp, Greater
+      , GreaterEq, IdentifierExp, Less, LessEq, Minus, Mod, NOT, NonEq, OR, Plus
+      , Times
+      )
+    , FunDeclrOrDef(FunDef)
+    , Identifier(Identifier)
+    , Param(Param)
+    , Program
+    , Stat(Assign, FuncCall, If, Return, VarDef, While)
+    )
 import VYPe15.Types.Semantics(SemanticAnalyzer(runSemAnalyzer), SError)
-import VYPe15.Types.SymbolTable (builtInFunctions, FunctionTable)
+import VYPe15.Types.SymbolTable (builtInFunctions)
 
 semanticAnalysis :: Program -> Either SError ()
-semanticAnalysis ast =
-    evalState (runReaderT (runExceptT $ runSemAnalyzer $ semanticAnalysis' ast) mkFunctionTable) []
+semanticAnalysis ast = flip evalState []
+    . flip runReaderT mkFunctionTable
+    . runExceptT
+    . runSemAnalyzer $ semanticAnalysis' ast
   where
     mkFunctionTable = foldl mkFunctionTable' builtInFunctions ast
     mkFunctionTable' table = \case
@@ -59,7 +71,8 @@ checkFunctionDef = \case
     putParams Nothing = return ()
     putParams (Just p) = modify (parameters:)
       where
-        parameters = foldl (\m (Param d (Identifier i)) -> M.insert i d m) M.empty p
+        parameters = foldl (\m (Param d (Identifier i)) ->
+            M.insert i d m) M.empty p
 
 checkStatements :: [Stat] -> SemanticAnalyzer ()
 checkStatements ss = pushNewVarTable >> mapM_ checkStatement ss >> popVarTable
@@ -68,8 +81,9 @@ checkStatements ss = pushNewVarTable >> mapM_ checkStatement ss >> popVarTable
     putVar :: [Identifier] -> DataType -> SemanticAnalyzer ()
     putVar is d = do
         varTable <- get
-        let newTopLevelTable = foldl (\t (Identifier i) -> M.insert i d t) (head varTable) is
-        put (newTopLevelTable:tail varTable)
+        put (newTopLevelTable d varTable is:tail varTable)
+    newTopLevelTable d table =
+        foldl (\t (Identifier i) -> M.insert i d t) (head table)
 
     checkStatement = \case
         Assign (Identifier i) e -> do
@@ -133,7 +147,6 @@ checkExpression = \case
     ConsNum _ -> return DInt
     ConsString _ -> return DString
     ConsChar _ ->  return DChar
-    Bracket e -> checkExpression e
     FuncCallExp i es -> checkFunctionCall i es
     IdentifierExp i -> isIdDefined i
   where
@@ -152,12 +165,14 @@ checkExpression = \case
         "Cannot match '" <> show t1 <> "' with '" <> show t2
             <> "' in the '" <> op <> "' relation expression."
     cannotMatchLogMsg op DInt t =
-        "Cannot match '" <> show t <> "' with 'int' in '" <> op <> "' expression."
+        "Cannot match '" <> show t <> "' with 'int' in '" <> op
+        <> "' expression."
     cannotMatchLogMsg op t DInt = cannotMatchLogMsg op DInt t
     cannotMatchLogMsg op t1 t2 =
         "Cannot match '" <> show t1 <> "' nor '" <> show t2
             <> "' witn 'int' in the '" <> op <> "' numeric expression."
-    cannotMatchMsg' t = "Cannot match '" <> show t <> "' with int in '!' expression."
+    cannotMatchMsg' t =
+        "Cannot match '" <> show t <> "' with int in '!' expression."
 
 checkFunctionCall :: Identifier -> [Exp] -> SemanticAnalyzer DataType
 checkFunctionCall (Identifier i) es = do

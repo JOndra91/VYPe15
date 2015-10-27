@@ -51,9 +51,14 @@ def = emptyDef
     , reservedNames = names
     }
   where
-    operators = ["=", "+", "-", "*", "/", "%", "<", ">", "<=", ">=", "==", "!=", "&&", "||", "!"]
-    names = ["if", "else", "return", "while", "string", "char", "int", "void"] <> vypeReserved
-    -- | There are reserved keywords according to project specification (Chapter 3.1)
+    operators =
+        [ "=", "+", "-", "*", "/", "%", "<", ">", "<=", ">=", "==", "!=", "&&"
+        , "||", "!"
+        ]
+    names = ["if", "else", "return", "while", "string", "char", "int", "void"]
+            <> vypeReserved
+    -- | There are reserved keywords according to project specification
+    -- (Chapter 3.1)
     vypeReserved = ["break", "continue", "for", "short", "unsigned"]
 
 TokenParser { parens = m_parens

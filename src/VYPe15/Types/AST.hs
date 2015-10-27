@@ -23,7 +23,7 @@ data Identifier
   = Identifier String
   deriving (Show)
 
-data Stat 
+data Stat
   = Assign Identifier Exp
   | If Exp [Stat] [Stat]
   | Return (Maybe Exp)
@@ -51,12 +51,11 @@ data Exp
   | ConsNum Integer
   | ConsString String
   | ConsChar Char
-  | Bracket Exp
   | FuncCallExp Identifier [Exp]
   | IdentifierExp String
   deriving (Show)
 
-data DataType 
+data DataType
   = DInt
   | DChar
   | DString
@@ -67,6 +66,6 @@ instance Show DataType where
     show DChar = "char"
     show DString = "string"
 
-data Param 
+data Param
     = Param DataType Identifier
     deriving (Show)

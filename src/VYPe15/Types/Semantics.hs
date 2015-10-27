@@ -19,13 +19,19 @@ import Text.Show (Show)
 
 import VYPe15.Types.SymbolTable (FunctionTable, VariableTable)
 
-
 data SError
     = SError String
     deriving (Show)
 
--- \r -> \s -> (Either SError a, s)
+-- r -> s -> (Either SError a, s)
 
 newtype SemanticAnalyzer a
-    = SemanticAnalyzer { runSemAnalyzer :: ExceptT SError (ReaderT FunctionTable (State [VariableTable])) a}
-  deriving (Functor, Applicative, Monad, MonadReader FunctionTable, MonadState [VariableTable])
+    = SemanticAnalyzer { runSemAnalyzer ::
+        ExceptT SError (ReaderT FunctionTable (State [VariableTable])) a }
+  deriving
+    ( Functor
+    , Applicative
+    , Monad
+    , MonadReader FunctionTable
+    , MonadState [VariableTable]
+    )
