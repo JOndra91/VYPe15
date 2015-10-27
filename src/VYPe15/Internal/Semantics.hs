@@ -33,10 +33,10 @@ import VYPe15.Types.Semantics(SemanticAnalyzer(runSemAnalyzer), SError)
 import VYPe15.Types.SymbolTable (builtInFunctions, FunctionTable)
 
 semanticAnalysis :: Program -> Either SError ()
-semanticAnalysis ast = 
-    evalState (runReaderT (runExceptT $ runSemAnalyzer $ semanticAnalysis' ast) mkFunctionTable) [] 
+semanticAnalysis ast =
+    evalState (runReaderT (runExceptT $ runSemAnalyzer $ semanticAnalysis' ast) mkFunctionTable) []
   where
-    mkFunctionTable = foldl mkFunctionTable' builtInFunctions ast 
+    mkFunctionTable = foldl mkFunctionTable' builtInFunctions ast
     mkFunctionTable' table = \case
         FunDef rt (Identifier i) p _ -> M.insert i (rt, p) table
         _ -> table
@@ -47,7 +47,7 @@ semanticAnalysis' = mapM_ checkFunctionDef . filter isFunctionDef
     isFunctionDef (FunDef _ _ _ _) = True
     isFunctionDef _ = False
 
-checkFunctionDef 
+checkFunctionDef
     :: FunDeclrOrDef
     -> SemanticAnalyzer ()
 checkFunctionDef = \case
@@ -55,7 +55,7 @@ checkFunctionDef = \case
         putParams p
         checkStatements s
     _ -> fail "Sorry, internal semantic analyzer error occoured."
-  where 
+  where
     putParams Nothing = return ()
     putParams (Just p) = modify (parameters:)
       where
@@ -71,13 +71,13 @@ checkStatements ss = pushNewVarTable >> mapM_ checkStatement ss >> popVarTable
         let newTopLevelTable = foldl (\t (Identifier i) -> M.insert i d t) (head varTable) is
         put (newTopLevelTable:tail varTable)
 
-    checkStatement = \case 
+    checkStatement = \case
         Assign (Identifier i) e -> do
             void $ isIdDefined i
             void $ checkExpression e
         VarDef d i -> do
             putVar i d
-        If e s s' -> do 
+        If e s s' -> do
             void $ checkExpression e
             checkStatements s
             checkStatements s'
@@ -101,7 +101,7 @@ isFunctionDefined i = do
     ft <- ask
     if i `elem` M.keys ft
     then return ()
-    else fail $ "Function '" <> i <> "' is not defined." 
+    else fail $ "Function '" <> i <> "' is not defined."
 
 isIdDefined :: String -> SemanticAnalyzer DataType
 isIdDefined i = do
@@ -109,7 +109,7 @@ isIdDefined i = do
     if i `elem` (M.keys $ M.unions varTable)
     then return (M.unions varTable M.! i)
     else fail $ "Identifier '" <> i <> "' is not defined."
-         
+
 checkExpression :: Exp -> SemanticAnalyzer DataType
 checkExpression = \case
     OR e1 e2 -> matchLogical "||" e1 e2
@@ -137,25 +137,25 @@ checkExpression = \case
     FuncCallExp i es -> checkFunctionCall i es
     IdentifierExp i -> isIdDefined i
   where
-    matchLogical op e1 e2 = do 
-        t1 <- checkExpression e1 
+    matchLogical op e1 e2 = do
+        t1 <- checkExpression e1
         t2 <- checkExpression e2
         if and [t1 == DInt, t2 == DInt] then return DInt
         else fail $ cannotMatchLogMsg op t1 t2
     matchRelation op e1 e2 = do
-        t1 <- checkExpression e1 
+        t1 <- checkExpression e1
         t2 <- checkExpression e2
         if and [t1 == t2] then return DInt
         else fail $ cannotMatchRelMsg op t1 t2
     matchNumeric = matchLogical
-    cannotMatchRelMsg op t1 t2 = 
-        "Cannot match '" <> show t1 <> "' with '" <> show t2 
+    cannotMatchRelMsg op t1 t2 =
+        "Cannot match '" <> show t1 <> "' with '" <> show t2
             <> "' in the '" <> op <> "' relation expression."
-    cannotMatchLogMsg op DInt t = 
+    cannotMatchLogMsg op DInt t =
         "Cannot match '" <> show t <> "' with 'int' in '" <> op <> "' expression."
     cannotMatchLogMsg op t DInt = cannotMatchLogMsg op DInt t
     cannotMatchLogMsg op t1 t2 =
-        "Cannot match '" <> show t1 <> "' nor '" <> show t2 
+        "Cannot match '" <> show t1 <> "' nor '" <> show t2
             <> "' witn 'int' in the '" <> op <> "' numeric expression."
     cannotMatchMsg' t = "Cannot match '" <> show t <> "' with int in '!' expression."
 
