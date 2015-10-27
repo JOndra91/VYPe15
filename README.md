@@ -3,4 +3,4 @@ Marek Kidon's and Ondra Janosik's 2015 Compiler Construction project
 
 ## Usage 
 `make`       
-`.stack-work/..../VYPe15 <<< "int fun (void) {foo(); bar(); id=1;} int foo(int, char, string);"`
+`.stack-work/..../VYPe15 test/prog1
