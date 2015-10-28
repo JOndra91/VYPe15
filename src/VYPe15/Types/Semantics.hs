@@ -19,8 +19,10 @@ import Data.Function (($), (.))
 import Data.Functor (Functor)
 import Data.String (String)
 import Text.Show (Show)
+import Data.Maybe (Maybe)
 
 import VYPe15.Types.SymbolTable (FunctionTable, VariableTable)
+import VYPe15.Types.AST (DataType)
 
 newtype SError
     = SError String
@@ -29,6 +31,9 @@ newtype SError
 data AnalyzerState = AnalyzerState
     { functionTable :: FunctionTable
     , variableTables :: [VariableTable]
+    , returnType :: Maybe DataType
+    -- ^ Actual return type of function is needed during it's processing so it's
+    -- possible to check when type in return statements matches.
     }
 
 newtype SemanticAnalyzer a
@@ -58,11 +63,17 @@ getVars = variableTables <$> get
 getFunc :: SemanticAnalyzer FunctionTable
 getFunc = functionTable <$> get
 
+getReturnType :: SemanticAnalyzer (Maybe DataType)
+getReturnType = returnType <$> get
+
 putVars :: [VariableTable] -> SemanticAnalyzer ()
 putVars vars = modify (\s -> s {variableTables = vars})
 
 putFunc :: FunctionTable -> SemanticAnalyzer ()
 putFunc func = modify (\s -> s {functionTable = func})
+
+putReturnType :: Maybe DataType -> SemanticAnalyzer ()
+putReturnType t = modify (\s -> s {returnType = t})
 
 modifyVars :: ([VariableTable] -> [VariableTable]) -> SemanticAnalyzer ()
 modifyVars f = modify

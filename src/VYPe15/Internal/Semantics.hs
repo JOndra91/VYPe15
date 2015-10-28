@@ -1,4 +1,3 @@
-{-# LANGUAGE DisambiguateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NoImplicitPrelude #-}
@@ -7,17 +6,17 @@
 module VYPe15.Internal.Semantics
 where
 
-import Control.Monad (mapM, mapM_, return, unless, void, (>>), (>>=))
+import Control.Monad (mapM, mapM_, return, unless, void, when, (>>), (>>=))
 import Control.Monad.Error.Class (throwError)
-import Data.Bool (Bool(False, True), (&&), (||), not, otherwise)
+import Data.Bool (Bool(False, True), not, otherwise, (&&), (||))
 import Data.Either (Either)
 import Data.Eq ((/=), (==))
 import Data.Foldable (and, foldl)
 import Data.Function (($), (.))
 import Data.Functor (fmap)
 import Data.List (elem, head, length, tail, zipWith)
-import Data.Map as M (empty, insert, keys, lookup, unions, (!))
-import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
+import Data.Map as M (empty, insert, keys, lookup, unions, (!), fromList)
+import Data.Maybe (Maybe(Just, Nothing), fromMaybe, isJust, fromJust)
 import Data.Monoid ((<>))
 import Data.String (String)
 import Text.Show (show)
@@ -43,16 +42,18 @@ import VYPe15.Types.Semantics
     , modifyVars
     , putVars
     , withFunc'
+    , putReturnType
     )
 import VYPe15.Types.SymbolTable
-    ( Function(FunctionDec, FunctionDef, functionParams, functionReturn)
+    ( Function(Function, functionParams, functionReturn)
+    , FunctionState(FuncDeclared, FuncDefined)
     , builtInFunctions
     )
 
 semanticAnalysis :: Program -> Either SError [String]
 semanticAnalysis ast = evalSemAnalyzer state $ semanticAnalysis' ast
   where
-    state = AnalyzerState builtInFunctions []
+    state = AnalyzerState builtInFunctions [] Nothing
 
 semanticAnalysis' :: Program -> SemanticAnalyzer ()
 semanticAnalysis' = mapM_ funDeclrOrDef
@@ -61,24 +62,27 @@ funDeclrOrDef :: FunDeclrOrDef -> SemanticAnalyzer ()
 funDeclrOrDef = \case
     FunDeclr returnType identifier params ->
         withFunc' (lookup identifier) >>= \case
-            Just FunctionDec{} -> throwError $ SError
+            Just (Function FuncDeclared _ _) -> throwError $ SError
                 $ "Function '" <> getId identifier <> "' is declared twice."
-            Just FunctionDef{} -> throwError $ SError
+            Just (Function FuncDefined _ _) -> throwError $ SError
                 $ "Function '" <> getId identifier <> "' is already defined."
             Nothing ->
-                modifyFunc (M.insert identifier (FunctionDec returnType params))
+                modifyFunc $ M.insert identifier
+                  (Function FuncDeclared returnType params)
 
-    FunDef returnType identifier params _stats ->
+    FunDef returnType identifier params stats ->
         withFunc' (lookup identifier) >>= \case
-            Just FunctionDef{} -> throwError $ SError
+            Just (Function FuncDefined _ _) -> throwError $ SError
                 $ "Function '" <> getId identifier <> "' is already defined."
-            Just (FunctionDec returnType' params')
+            Just (Function FuncDeclared returnType' params')
                 | returnType /= returnType' || not (params `paramsEq` params')
                     -> throwError $ SError
                         $ "Definition and declaration types of function '"
                           <> getId identifier <> "' differs."
                 | otherwise -> handleFunctionDefinition
+                  returnType identifier params stats
             Nothing -> handleFunctionDefinition
+              returnType identifier params stats
   where
     paramsEq p1 p2 = case (p1, p2) of
         (Nothing, Nothing) -> True
@@ -88,10 +92,14 @@ funDeclrOrDef = \case
 
     paramEq p1 p2 = getParamType p1 == getParamType p2
 
-    -- TODO: Create new variable table and put parameters in it.
-    -- Put function into function table as FunctionDef.
-    -- Generate code from statements?
-    handleFunctionDefinition = return ()
+    handleFunctionDefinition returnType identifier params stats = do
+        modifyFunc $ M.insert identifier
+          (Function FuncDefined returnType params)
+        when (isJust params) $ modifyVars (paramsToMap (fromJust params):)
+        putReturnType returnType
+        checkStatements stats
+
+    paramsToMap ps = M.fromList $ fmap (\(Param dt id) -> (id, dt)) ps
 
 checkFunctionDef
     :: FunDeclrOrDef

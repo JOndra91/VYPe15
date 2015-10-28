@@ -15,42 +15,47 @@ import VYPe15.Types.AST
 
 type VariableTable = M.Map Identifier DataType
 
-data Function
-    = FunctionDef
-        { functionReturn :: Maybe DataType
-        , functionParams :: Maybe [Param]
-        }
-    | FunctionDec
-        { functionReturn :: Maybe DataType
-        , functionParams :: Maybe [Param]
-        }
+data FunctionState
+    = FuncDefined
+    | FuncDeclared
+
+data Function = Function
+    { isDefined :: FunctionState
+    , functionReturn :: Maybe DataType
+    , functionParams :: Maybe [Param]
+    }
 
 type FunctionTable = M.Map Identifier Function
 
 builtInFunctions :: FunctionTable
 builtInFunctions = M.fromList
     [ ("print",
-        FunctionDef
+        Function
+          FuncDefined
           Nothing
           (Just [AnonymousParam DString])
       )
     , ("read_char",
-        FunctionDef
+        Function
+          FuncDefined
           (Just DChar)
           Nothing
       )
     , ("read_int",
-        FunctionDef
+        Function
+          FuncDefined
           (Just DInt)
           Nothing
       )
     , ("read_string",
-        FunctionDef
+        Function
+          FuncDefined
           (Just DString)
           Nothing
       )
     , ("get_at",
-        FunctionDef
+        Function
+          FuncDefined
           (Just DChar)
           (Just
             [ AnonymousParam DString
@@ -59,7 +64,8 @@ builtInFunctions = M.fromList
           )
       )
     , ("set_at",
-        FunctionDef
+        Function
+          FuncDefined
           (Just DString)
           (Just
             [ AnonymousParam DString
@@ -69,7 +75,8 @@ builtInFunctions = M.fromList
           )
       )
     , ("strcat",
-        FunctionDef
+        Function
+          FuncDefined
           (Just DString)
           (Just
             [ AnonymousParam DString
