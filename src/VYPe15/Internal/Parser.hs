@@ -43,7 +43,7 @@ import VYPe15.Types.AST
       )
     , FunDeclrOrDef(FunDeclr, FunDef)
     , Identifier(Identifier)
-    , Param(Param)
+    , Param(Param, AnonymousParam)
     , Program
     , Stat(Assign, FuncCall, If, Return, VarDef, While)
     )
@@ -131,8 +131,9 @@ dataTypeParser = return DInt <* m_reserved "int"
              <|> return DChar <* m_reserved "char"
              <|> return DString <* m_reserved "string"
 
-typeParamsParser :: Parser (Maybe [DataType])
-typeParamsParser = Just <$> m_commaSep1 dataTypeParser <|> voidParser
+typeParamsParser :: Parser (Maybe [Param])
+typeParamsParser = Just <$> m_commaSep1 (AnonymousParam <$> dataTypeParser)
+               <|> voidParser
 
 paramParser :: Parser Param
 paramParser = Param <$> dataTypeParser <*> fmap Identifier m_identifier

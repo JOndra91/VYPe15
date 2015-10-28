@@ -9,7 +9,7 @@ module VYPe15.Types.Semantics
 where
 
 import Control.Applicative (Applicative, (<$>))
-import Control.Monad (Monad)
+import Control.Monad (Monad, (>>=))
 import Control.Monad.Error.Class (MonadError)
 import Control.Monad.Except (ExceptT, runExceptT)
 import Control.Monad.State (MonadState, State, evalState, get, modify)
@@ -71,3 +71,15 @@ modifyVars f = modify
 modifyFunc :: (FunctionTable -> FunctionTable) -> SemanticAnalyzer ()
 modifyFunc f = modify
     $ \s -> s {functionTable = f $ functionTable s}
+
+withVars :: ([VariableTable] -> SemanticAnalyzer a) -> SemanticAnalyzer a
+withVars = (getVars >>=)
+
+withFunc :: (FunctionTable -> SemanticAnalyzer a) -> SemanticAnalyzer a
+withFunc = (getFunc >>=)
+
+withVars' :: ([VariableTable] -> a) -> SemanticAnalyzer a
+withVars' = (<$> getVars)
+
+withFunc' :: (FunctionTable -> a) -> SemanticAnalyzer a
+withFunc' = (<$> getFunc)

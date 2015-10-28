@@ -1,12 +1,14 @@
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE LambdaCase #-}
 
 module VYPe15.Types.AST
 where
 
+import Data.Char (Char)
 import Data.Eq (Eq)
 import Data.Maybe (Maybe)
-import Data.Char (Char)
-import Data.String (String)
+import Data.Ord (Ord)
+import Data.String (IsString(fromString), String)
 import Text.Show (Show(show))
 
 import Prelude (Integer)
@@ -15,13 +17,16 @@ type Program
   = [FunDeclrOrDef]
 
 data FunDeclrOrDef
-  = FunDeclr (Maybe DataType) Identifier (Maybe [DataType])
+  = FunDeclr (Maybe DataType) Identifier (Maybe [Param])
   | FunDef (Maybe DataType) Identifier (Maybe [Param]) [Stat]
   deriving (Show)
 
 data Identifier
-  = Identifier String
-  deriving (Show)
+  = Identifier { getId :: String }
+  deriving (Show, Ord, Eq)
+
+instance IsString Identifier where
+  fromString = Identifier
 
 data Stat
   = Assign Identifier Exp
@@ -68,4 +73,10 @@ instance Show DataType where
 
 data Param
     = Param DataType Identifier
+    | AnonymousParam DataType
     deriving (Show)
+
+getParamType :: Param -> DataType
+getParamType = \case
+    (Param t _) -> t
+    (AnonymousParam t) -> t

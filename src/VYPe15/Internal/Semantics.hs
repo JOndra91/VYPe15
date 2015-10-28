@@ -7,34 +7,30 @@
 module VYPe15.Internal.Semantics
 where
 
-import Control.Monad (liftM, mapM, mapM_, return, unless, void, (>>))
+import Control.Monad (mapM, mapM_, return, unless, void, (>>), (>>=))
 import Control.Monad.Error.Class (throwError)
-import Data.Bool (Bool(False, True), (&&))
+import Data.Bool (Bool(False, True), (&&), (||), not, otherwise)
 import Data.Either (Either)
-import Data.Eq ((==))
+import Data.Eq ((/=), (==))
 import Data.Foldable (and, foldl)
 import Data.Function (($), (.))
 import Data.Functor (fmap)
-import Data.List (elem, filter, head, tail)
-import Data.Map as M (empty, insert, keys, unions, (!))
+import Data.List (elem, head, length, tail, zipWith)
+import Data.Map as M (empty, insert, keys, lookup, unions, (!))
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
 import Data.Monoid ((<>))
 import Data.String (String)
-import Data.Tuple (fst, snd)
 import Text.Show (show)
 
 import VYPe15.Types.AST
     ( DataType(DChar, DInt, DString)
-    , Exp
-      ( AND, Cast, ConsChar, ConsNum, ConsString, Div, Eq, FuncCallExp, Greater
-      , GreaterEq, IdentifierExp, Less, LessEq, Minus, Mod, NOT, NonEq, OR, Plus
-      , Times
-      )
-    , FunDeclrOrDef(FunDef)
-    , Identifier(Identifier)
+    , Exp(AND, Cast, ConsChar, ConsNum, ConsString, Div, Eq, FuncCallExp, Greater, GreaterEq, IdentifierExp, Less, LessEq, Minus, Mod, NOT, NonEq, OR, Plus, Times)
+    , FunDeclrOrDef(FunDeclr, FunDef)
+    , Identifier(Identifier, getId)
     , Param(Param)
     , Program
     , Stat(Assign, FuncCall, If, Return, VarDef, While)
+    , getParamType
     )
 import VYPe15.Types.Semantics
     ( AnalyzerState(AnalyzerState)
@@ -43,25 +39,59 @@ import VYPe15.Types.Semantics
     , evalSemAnalyzer
     , getFunc
     , getVars
+    , modifyFunc
     , modifyVars
     , putVars
+    , withFunc'
     )
-import VYPe15.Types.SymbolTable (builtInFunctions)
+import VYPe15.Types.SymbolTable
+    ( Function(FunctionDec, FunctionDef, functionParams, functionReturn)
+    , builtInFunctions
+    )
 
 semanticAnalysis :: Program -> Either SError [String]
 semanticAnalysis ast = evalSemAnalyzer state $ semanticAnalysis' ast
   where
-    mkFunctionTable = foldl mkFunctionTable' builtInFunctions ast
-    mkFunctionTable' table = \case
-        FunDef rt (Identifier i) p _ -> M.insert i (rt, p) table
-        _ -> table
-    state = AnalyzerState mkFunctionTable []
+    state = AnalyzerState builtInFunctions []
 
 semanticAnalysis' :: Program -> SemanticAnalyzer ()
-semanticAnalysis' = mapM_ checkFunctionDef . filter isFunctionDef
+semanticAnalysis' = mapM_ funDeclrOrDef
+
+funDeclrOrDef :: FunDeclrOrDef -> SemanticAnalyzer ()
+funDeclrOrDef = \case
+    FunDeclr returnType identifier params ->
+        withFunc' (lookup identifier) >>= \case
+            Just FunctionDec{} -> throwError $ SError
+                $ "Function '" <> getId identifier <> "' is declared twice."
+            Just FunctionDef{} -> throwError $ SError
+                $ "Function '" <> getId identifier <> "' is already defined."
+            Nothing ->
+                modifyFunc (M.insert identifier (FunctionDec returnType params))
+
+    FunDef returnType identifier params _stats ->
+        withFunc' (lookup identifier) >>= \case
+            Just FunctionDef{} -> throwError $ SError
+                $ "Function '" <> getId identifier <> "' is already defined."
+            Just (FunctionDec returnType' params')
+                | returnType /= returnType' || not (params `paramsEq` params')
+                    -> throwError $ SError
+                        $ "Definition and declaration types of function '"
+                          <> getId identifier <> "' differs."
+                | otherwise -> handleFunctionDefinition
+            Nothing -> handleFunctionDefinition
   where
-    isFunctionDef FunDef{} = True
-    isFunctionDef _ = False
+    paramsEq p1 p2 = case (p1, p2) of
+        (Nothing, Nothing) -> True
+        (Just p1', Just p2') -> length p1' == length p2'
+                             && and (zipWith paramEq p1' p2')
+        _ -> False
+
+    paramEq p1 p2 = getParamType p1 == getParamType p2
+
+    -- TODO: Create new variable table and put parameters in it.
+    -- Put function into function table as FunctionDef.
+    -- Generate code from statements?
+    handleFunctionDefinition = return ()
 
 checkFunctionDef
     :: FunDeclrOrDef
@@ -75,8 +105,7 @@ checkFunctionDef = \case
     putParams Nothing = return ()
     putParams (Just p) = modifyVars (parameters:)
       where
-        parameters = foldl (\m (Param d (Identifier i)) ->
-            M.insert i d m) M.empty p
+        parameters = foldl (\m (Param d i) -> M.insert i d m) M.empty p
 
 checkStatements :: [Stat] -> SemanticAnalyzer ()
 checkStatements ss = pushNewVarTable >> mapM_ checkStatement ss >> popVarTable
@@ -87,10 +116,10 @@ checkStatements ss = pushNewVarTable >> mapM_ checkStatement ss >> popVarTable
         varTable <- getVars
         putVars (newTopLevelTable d varTable is:tail varTable)
     newTopLevelTable d table =
-        foldl (\t (Identifier i) -> M.insert i d t) (head table)
+        foldl (\t i -> M.insert i d t) (head table)
 
     checkStatement = \case
-        Assign (Identifier i) e -> do
+        Assign i e -> do
             void $ isIdDefined i
             void $ checkExpression e
         VarDef d i ->
@@ -114,18 +143,18 @@ checkStatements ss = pushNewVarTable >> mapM_ checkStatement ss >> popVarTable
     popVarTable :: SemanticAnalyzer ()
     popVarTable = modifyVars tail
 
-isFunctionDefined :: String -> SemanticAnalyzer ()
+isFunctionDefined :: Identifier -> SemanticAnalyzer ()
 isFunctionDefined i = do
     ft <- getFunc
     unless (i `elem` M.keys ft)
-      $ throwError $ SError $ "Function '" <> i <> "' is not defined."
+      $ throwError $ SError $ "Function '" <> getId i <> "' is not defined."
 
-isIdDefined :: String -> SemanticAnalyzer DataType
+isIdDefined :: Identifier -> SemanticAnalyzer DataType
 isIdDefined i = do
     varTable <- getVars
     if i `elem` M.keys (M.unions varTable)
     then return (M.unions varTable M.! i)
-    else throwError $ SError $ "Identifier '" <> i <> "' is not defined."
+    else throwError $ SError $ "Identifier '" <> getId i <> "' is not defined."
 
 checkExpression :: Exp -> SemanticAnalyzer DataType
 checkExpression = \case
@@ -151,7 +180,7 @@ checkExpression = \case
     ConsString _ -> return DString
     ConsChar _ ->  return DChar
     FuncCallExp i es -> checkFunctionCall i es
-    IdentifierExp i -> isIdDefined i
+    IdentifierExp i -> isIdDefined $ Identifier i
   where
     matchLogical op e1 e2 = do
         t1 <- checkExpression e1
@@ -179,15 +208,15 @@ checkExpression = \case
         "Cannot match '" <> show t <> "' with int in '!' expression."
 
 checkFunctionCall :: Identifier -> [Exp] -> SemanticAnalyzer DataType
-checkFunctionCall (Identifier i) es = do
+checkFunctionCall i es = do
         isFunctionDefined i
         actualTs <- mapM checkExpression es
         t <- getFunc
         if actualTs == getParamTypes t i
-        then return $ fromMaybe DInt $ fst $ t M.! i
+        then return . fromMaybe DInt . functionReturn $ t M.! i
         else throwError $ SError paramsDoNotMatchMsg
   where
     paramsDoNotMatchMsg = "Parameters do not match"
-    getParamTypes ts = typeFromParam . snd . (M.!) ts
+    getParamTypes ts = typeFromParam . functionParams . (M.!) ts
       where
-        typeFromParam = fromMaybe [] . liftM (fmap (\(Param t _) -> t))
+        typeFromParam = fmap getParamType . fromMaybe []

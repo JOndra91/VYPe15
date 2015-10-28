@@ -1,67 +1,80 @@
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module VYPe15.Types.SymbolTable
 where
 
 import Data.Map.Lazy as M (Map, fromList)
-import Data.Maybe(Maybe(Just, Nothing))
-import Data.String (String)
+import Data.Maybe (Maybe(Just, Nothing))
 
 import VYPe15.Types.AST
-    (DataType(DInt, DString, DChar), Identifier(Identifier), Param(Param))
+    ( DataType(DChar, DInt, DString)
+    , Param(AnonymousParam)
+    , Identifier
+    )
 
-type VariableTable = M.Map String DataType
+type VariableTable = M.Map Identifier DataType
 
-type Function = (Maybe DataType, Maybe [Param])
-type FunctionTable = M.Map String Function
+data Function
+    = FunctionDef
+        { functionReturn :: Maybe DataType
+        , functionParams :: Maybe [Param]
+        }
+    | FunctionDec
+        { functionReturn :: Maybe DataType
+        , functionParams :: Maybe [Param]
+        }
+
+type FunctionTable = M.Map Identifier Function
 
 builtInFunctions :: FunctionTable
 builtInFunctions = M.fromList
     [ ("print",
-        ( Nothing
-        , Just
-            [ Param DString (Identifier "")
-            ]
-        )
+        FunctionDef
+          Nothing
+          (Just [AnonymousParam DString])
       )
     , ("read_char",
-        ( Just DChar
-        , Nothing
-        )
+        FunctionDef
+          (Just DChar)
+          Nothing
       )
     , ("read_int",
-        ( Just DInt
-        , Nothing
-        )
+        FunctionDef
+          (Just DInt)
+          Nothing
       )
     , ("read_string",
-        ( Just DString
-        , Nothing
-        )
+        FunctionDef
+          (Just DString)
+          Nothing
       )
     , ("get_at",
-        ( Just DChar
-        , Just
-            [ Param DString (Identifier "")
-            , Param DInt (Identifier "")
+        FunctionDef
+          (Just DChar)
+          (Just
+            [ AnonymousParam DString
+            , AnonymousParam DInt
             ]
-        )
+          )
       )
     , ("set_at",
-        ( Just DString
-        , Just
-            [ Param DString (Identifier "")
-            , Param DInt  (Identifier "")
-            , Param DChar (Identifier "")
+        FunctionDef
+          (Just DString)
+          (Just
+            [ AnonymousParam DString
+            , AnonymousParam DInt
+            , AnonymousParam DChar
             ]
-        )
+          )
       )
     , ("strcat",
-        ( Just DString
-        , Just
-            [ Param DString (Identifier "")
-            , Param DString (Identifier "")
+        FunctionDef
+          (Just DString)
+          (Just
+            [ AnonymousParam DString
+            , AnonymousParam DString
             ]
-        )
+          )
       )
     ]
