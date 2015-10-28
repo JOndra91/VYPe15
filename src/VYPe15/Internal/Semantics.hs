@@ -1,24 +1,19 @@
+{-# LANGUAGE DisambiguateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE DisambiguateRecordFields #-}
 
 module VYPe15.Internal.Semantics
 where
 
 import Control.Monad (liftM, mapM, mapM_, return, unless, void, (>>))
 import Control.Monad.Error.Class (throwError)
-import Control.Monad.Except (runExceptT)
-import Control.Monad.Reader.Class (ask)
-import Control.Monad.State.Class (get, modify, put)
-import Control.Monad.Trans.Reader (runReaderT)
-import Control.Monad.Trans.State (evalState)
 import Data.Bool (Bool(False, True), (&&))
 import Data.Either (Either)
 import Data.Eq ((==))
 import Data.Foldable (and, foldl)
-import Data.Function (flip, ($), (.))
+import Data.Function (($), (.))
 import Data.Functor (fmap)
 import Data.List (elem, filter, head, tail)
 import Data.Map as M (empty, insert, keys, unions, (!))
@@ -41,19 +36,26 @@ import VYPe15.Types.AST
     , Program
     , Stat(Assign, FuncCall, If, Return, VarDef, While)
     )
-import VYPe15.Types.Semantics (SError(SError), SemanticAnalyzer(runSemAnalyzer))
+import VYPe15.Types.Semantics
+    ( AnalyzerState(AnalyzerState)
+    , SError(SError)
+    , SemanticAnalyzer
+    , evalSemAnalyzer
+    , getFunc
+    , getVars
+    , modifyVars
+    , putVars
+    )
 import VYPe15.Types.SymbolTable (builtInFunctions)
 
-semanticAnalysis :: Program -> Either SError ()
-semanticAnalysis ast = flip evalState []
-    . flip runReaderT mkFunctionTable
-    . runExceptT
-    . runSemAnalyzer $ semanticAnalysis' ast
+semanticAnalysis :: Program -> Either SError [String]
+semanticAnalysis ast = evalSemAnalyzer state $ semanticAnalysis' ast
   where
     mkFunctionTable = foldl mkFunctionTable' builtInFunctions ast
     mkFunctionTable' table = \case
         FunDef rt (Identifier i) p _ -> M.insert i (rt, p) table
         _ -> table
+    state = AnalyzerState mkFunctionTable []
 
 semanticAnalysis' :: Program -> SemanticAnalyzer ()
 semanticAnalysis' = mapM_ checkFunctionDef . filter isFunctionDef
@@ -71,7 +73,7 @@ checkFunctionDef = \case
     _ -> throwError $ SError "Sorry, internal semantic analyzer error occoured."
   where
     putParams Nothing = return ()
-    putParams (Just p) = modify (parameters:)
+    putParams (Just p) = modifyVars (parameters:)
       where
         parameters = foldl (\m (Param d (Identifier i)) ->
             M.insert i d m) M.empty p
@@ -82,8 +84,8 @@ checkStatements ss = pushNewVarTable >> mapM_ checkStatement ss >> popVarTable
     -- TODO : check for existence of that id in previous tables
     putVar :: [Identifier] -> DataType -> SemanticAnalyzer ()
     putVar is d = do
-        varTable <- get
-        put (newTopLevelTable d varTable is:tail varTable)
+        varTable <- getVars
+        putVars (newTopLevelTable d varTable is:tail varTable)
     newTopLevelTable d table =
         foldl (\t (Identifier i) -> M.insert i d t) (head table)
 
@@ -107,20 +109,20 @@ checkStatements ss = pushNewVarTable >> mapM_ checkStatement ss >> popVarTable
         FuncCall i es -> void $ checkFunctionCall i es
 
     pushNewVarTable :: SemanticAnalyzer ()
-    pushNewVarTable = modify (M.empty:)
+    pushNewVarTable = modifyVars (M.empty:)
 
     popVarTable :: SemanticAnalyzer ()
-    popVarTable = modify tail
+    popVarTable = modifyVars tail
 
 isFunctionDefined :: String -> SemanticAnalyzer ()
 isFunctionDefined i = do
-    ft <- ask
+    ft <- getFunc
     unless (i `elem` M.keys ft)
       $ throwError $ SError $ "Function '" <> i <> "' is not defined."
 
 isIdDefined :: String -> SemanticAnalyzer DataType
 isIdDefined i = do
-    varTable <- get
+    varTable <- getVars
     if i `elem` M.keys (M.unions varTable)
     then return (M.unions varTable M.! i)
     else throwError $ SError $ "Identifier '" <> i <> "' is not defined."
@@ -180,7 +182,7 @@ checkFunctionCall :: Identifier -> [Exp] -> SemanticAnalyzer DataType
 checkFunctionCall (Identifier i) es = do
         isFunctionDefined i
         actualTs <- mapM checkExpression es
-        t <- ask
+        t <- getFunc
         if actualTs == getParamTypes t i
         then return $ fromMaybe DInt $ fst $ t M.! i
         else throwError $ SError paramsDoNotMatchMsg
