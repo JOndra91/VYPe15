@@ -1,30 +1,32 @@
-{-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE DisambiguateRecordFields #-}
 
 module VYPe15.Internal.Semantics
 where
 
-import Control.Monad (return, mapM_, mapM,(>>), fail, void, liftM)
+import Control.Monad (liftM, mapM, mapM_, return, unless, void, (>>))
+import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except (runExceptT)
-import Control.Monad.State.Class(put, modify, get)
-import Control.Monad.Reader.Class(ask)
+import Control.Monad.Reader.Class (ask)
+import Control.Monad.State.Class (get, modify, put)
 import Control.Monad.Trans.Reader (runReaderT)
 import Control.Monad.Trans.State (evalState)
-import Data.Bool(Bool(True,False))
+import Data.Bool (Bool(False, True), (&&))
 import Data.Either (Either)
 import Data.Eq ((==))
-import Data.Foldable (foldl, and)
-import Data.Function (($), (.), flip)
+import Data.Foldable (and, foldl)
+import Data.Function (flip, ($), (.))
 import Data.Functor (fmap)
-import Data.List (filter, elem, head, tail)
-import Data.Maybe(Maybe(Just,Nothing), fromMaybe)
-import Data.Map as M (insert, empty, unions, keys, (!))
+import Data.List (elem, filter, head, tail)
+import Data.Map as M (empty, insert, keys, unions, (!))
+import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
 import Data.Monoid ((<>))
 import Data.String (String)
-import Data.Tuple (snd, fst)
-import Text.Show(show)
+import Data.Tuple (fst, snd)
+import Text.Show (show)
 
 import VYPe15.Types.AST
     ( DataType(DChar, DInt, DString)
@@ -39,7 +41,7 @@ import VYPe15.Types.AST
     , Program
     , Stat(Assign, FuncCall, If, Return, VarDef, While)
     )
-import VYPe15.Types.Semantics(SemanticAnalyzer(runSemAnalyzer), SError)
+import VYPe15.Types.Semantics (SError(SError), SemanticAnalyzer(runSemAnalyzer))
 import VYPe15.Types.SymbolTable (builtInFunctions)
 
 semanticAnalysis :: Program -> Either SError ()
@@ -56,7 +58,7 @@ semanticAnalysis ast = flip evalState []
 semanticAnalysis' :: Program -> SemanticAnalyzer ()
 semanticAnalysis' = mapM_ checkFunctionDef . filter isFunctionDef
   where
-    isFunctionDef (FunDef _ _ _ _) = True
+    isFunctionDef FunDef{} = True
     isFunctionDef _ = False
 
 checkFunctionDef
@@ -66,7 +68,7 @@ checkFunctionDef = \case
     (FunDef _ _ p s) -> do
         putParams p
         checkStatements s
-    _ -> fail "Sorry, internal semantic analyzer error occoured."
+    _ -> throwError $ SError "Sorry, internal semantic analyzer error occoured."
   where
     putParams Nothing = return ()
     putParams (Just p) = modify (parameters:)
@@ -89,15 +91,15 @@ checkStatements ss = pushNewVarTable >> mapM_ checkStatement ss >> popVarTable
         Assign (Identifier i) e -> do
             void $ isIdDefined i
             void $ checkExpression e
-        VarDef d i -> do
+        VarDef d i ->
             putVar i d
         If e s s' -> do
             void $ checkExpression e
             checkStatements s
             checkStatements s'
-        Return (Just e) -> do
+        Return (Just e) ->
             void $ checkExpression e
-        Return Nothing -> do
+        Return Nothing ->
             return ()
         While e s -> do
             void $ checkExpression e
@@ -108,21 +110,20 @@ checkStatements ss = pushNewVarTable >> mapM_ checkStatement ss >> popVarTable
     pushNewVarTable = modify (M.empty:)
 
     popVarTable :: SemanticAnalyzer ()
-    popVarTable = modify (tail)
+    popVarTable = modify tail
 
 isFunctionDefined :: String -> SemanticAnalyzer ()
 isFunctionDefined i = do
     ft <- ask
-    if i `elem` M.keys ft
-    then return ()
-    else fail $ "Function '" <> i <> "' is not defined."
+    unless (i `elem` M.keys ft)
+      $ throwError $ SError $ "Function '" <> i <> "' is not defined."
 
 isIdDefined :: String -> SemanticAnalyzer DataType
 isIdDefined i = do
     varTable <- get
-    if i `elem` (M.keys $ M.unions varTable)
+    if i `elem` M.keys (M.unions varTable)
     then return (M.unions varTable M.! i)
-    else fail $ "Identifier '" <> i <> "' is not defined."
+    else throwError $ SError $ "Identifier '" <> i <> "' is not defined."
 
 checkExpression :: Exp -> SemanticAnalyzer DataType
 checkExpression = \case
@@ -142,7 +143,7 @@ checkExpression = \case
     NOT e -> do
         t <- checkExpression e
         if and [t == DInt] then return DInt
-        else fail $ cannotMatchMsg' t
+        else throwError $ SError $ cannotMatchMsg' t
     Cast t e -> checkExpression e >> return t
     ConsNum _ -> return DInt
     ConsString _ -> return DString
@@ -153,13 +154,14 @@ checkExpression = \case
     matchLogical op e1 e2 = do
         t1 <- checkExpression e1
         t2 <- checkExpression e2
-        if and [t1 == DInt, t2 == DInt] then return DInt
-        else fail $ cannotMatchLogMsg op t1 t2
+        if (t1 == DInt) && (t2 == DInt)
+        then return DInt
+        else throwError $ SError $ cannotMatchLogMsg op t1 t2
     matchRelation op e1 e2 = do
         t1 <- checkExpression e1
         t2 <- checkExpression e2
         if and [t1 == t2] then return DInt
-        else fail $ cannotMatchRelMsg op t1 t2
+        else throwError $ SError $ cannotMatchRelMsg op t1 t2
     matchNumeric = matchLogical
     cannotMatchRelMsg op t1 t2 =
         "Cannot match '" <> show t1 <> "' with '" <> show t2
@@ -181,7 +183,7 @@ checkFunctionCall (Identifier i) es = do
         t <- ask
         if actualTs == getParamTypes t i
         then return $ fromMaybe DInt $ fst $ t M.! i
-        else fail $ paramsDoNotMatchMsg
+        else throwError $ SError paramsDoNotMatchMsg
   where
     paramsDoNotMatchMsg = "Parameters do not match"
     getParamTypes ts = typeFromParam . snd . (M.!) ts

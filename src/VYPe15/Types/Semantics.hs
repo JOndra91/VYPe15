@@ -1,13 +1,14 @@
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module VYPe15.Types.Semantics
 where
 
 import Control.Applicative (Applicative)
 import Control.Monad (Monad)
+import Control.Monad.Error.Class (MonadError)
 import Control.Monad.Except (ExceptT)
 import Control.Monad.Reader.Class (MonadReader)
 import Control.Monad.State.Class (MonadState)
@@ -19,11 +20,9 @@ import Text.Show (Show)
 
 import VYPe15.Types.SymbolTable (FunctionTable, VariableTable)
 
-data SError
+newtype SError
     = SError String
-    deriving (Show)
-
--- r -> s -> (Either SError a, s)
+  deriving (Show)
 
 newtype SemanticAnalyzer a
     = SemanticAnalyzer { runSemAnalyzer ::
@@ -32,6 +31,7 @@ newtype SemanticAnalyzer a
     ( Functor
     , Applicative
     , Monad
+    , MonadError SError
     , MonadReader FunctionTable
     , MonadState [VariableTable]
     )
