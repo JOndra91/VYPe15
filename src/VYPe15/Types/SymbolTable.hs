@@ -1,19 +1,42 @@
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
-
 module VYPe15.Types.SymbolTable
-where
+  where
 
+import Prelude (Enum, Bounded)
+
+import Data.Eq (Eq)
+import Data.Word (Word64)
 import Data.Map.Lazy as M (Map, fromList)
 import Data.Maybe (Maybe(Just, Nothing))
+import Data.Ord (Ord)
+import Data.Text (Text)
+import Text.Show (Show)
 
 import VYPe15.Types.AST
-    ( DataType(DChar, DInt, DString)
-    , Param(AnonymousParam)
-    , Identifier
-    )
+    (DataType(DChar, DInt, DString), Identifier, Param(AnonymousParam))
 
-type VariableTable = M.Map Identifier DataType
+newtype Id (a :: IdType) = Id Word64
+  deriving (Show, Ord, Eq, Enum, Bounded)
+
+data IdType
+    = Var
+    | Data
+    | Label
+
+type VarId = Id Var
+type DataId = Id Data
+type LabelId = Id Label
+
+data Variable = Variable
+    { varId :: VarId
+    , varType :: DataType
+    }
+
+type VariableTable = M.Map Identifier Variable
 
 data FunctionState
     = FuncDefined
@@ -26,6 +49,11 @@ data Function = Function
     }
 
 type FunctionTable = M.Map Identifier Function
+
+data ProgramData
+    = String Text
+
+type DataTable = M.Map DataId ProgramData
 
 builtInFunctions :: FunctionTable
 builtInFunctions = M.fromList

@@ -33,4 +33,5 @@ executable VYPe15
                        , parsec
                        , transformers
                        , vector
+                       , text
   ghc-options:         -Wall -fwarn-implicit-prelude -fwarn-missing-import-lists
