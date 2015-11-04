@@ -70,7 +70,7 @@ semanticAnalysis ast = evalSemAnalyzer state $ semanticAnalysis' ast
             , variableId = minBound
             , dataId = minBound
             , labelId = minBound
-            } -- builtInFunctions [] Nothing
+            }
 
 semanticAnalysis' :: Program -> SemanticAnalyzer ()
 semanticAnalysis' = mapM_ funDeclrOrDef
@@ -140,7 +140,6 @@ checkFunctionDef = \case
 checkStatements :: [Stat] -> SemanticAnalyzer ()
 checkStatements ss = pushVars M.empty >> mapM_ checkStatement ss >> popVars
   where
-    -- TODO : check for existence of that id in previous tables
     putVar :: Identifier -> DataType -> SemanticAnalyzer ()
     putVar id d = do
         v <- mkVar d
@@ -165,8 +164,8 @@ checkStatements ss = pushVars M.empty >> mapM_ checkStatement ss >> popVars
             checkStatements s
         FuncCall i es -> void $ checkFunctionCall i es
 
-isFunctionDefined :: Identifier -> SemanticAnalyzer ()
-isFunctionDefined i = do
+checkFunctionDecl :: Identifier -> SemanticAnalyzer ()
+checkFunctionDecl i = do
     ft <- getFunc
     unless (i `elem` M.keys ft)
       $ throwError $ SError $ "Function '" <> getId i <> "' is not defined."
@@ -197,8 +196,9 @@ checkExpression = \case
     Mod e1 e2 -> matchNumeric "%" e1 e2
     NOT e -> do
         t <- checkExpression e
-        if and [t == DInt] then return DInt
-        else throwError $ SError $ cannotMatchMsg' t
+        if and [t == DInt]
+          then return DInt
+          else throwError $ SError $ cannotMatchMsg' t
     Cast t e -> checkExpression e >> return t
     ConsNum _ -> return DInt
     ConsString _ -> return DString
@@ -210,13 +210,14 @@ checkExpression = \case
         t1 <- checkExpression e1
         t2 <- checkExpression e2
         if (t1 == DInt) && (t2 == DInt)
-        then return DInt
-        else throwError $ SError $ cannotMatchLogMsg op t1 t2
+          then return DInt
+          else throwError $ SError $ cannotMatchLogMsg op t1 t2
     matchRelation op e1 e2 = do
         t1 <- checkExpression e1
         t2 <- checkExpression e2
-        if and [t1 == t2] then return DInt
-        else throwError $ SError $ cannotMatchRelMsg op t1 t2
+        if t1 == t2
+          then return DInt
+          else throwError $ SError $ cannotMatchRelMsg op t1 t2
     matchNumeric = matchLogical
     cannotMatchRelMsg op t1 t2 =
         "Cannot match '" <> show t1 <> "' with '" <> show t2
@@ -233,12 +234,12 @@ checkExpression = \case
 
 checkFunctionCall :: Identifier -> [Exp] -> SemanticAnalyzer DataType
 checkFunctionCall i es = do
-        isFunctionDefined i
+        checkFunctionDecl i
         actualTs <- mapM checkExpression es
         t <- getFunc
         if actualTs == getParamTypes t i
-        then return . fromMaybe DInt . functionReturn $ t M.! i
-        else throwError $ SError paramsDoNotMatchMsg
+          then return . fromMaybe DInt . functionReturn $ t M.! i
+          else throwError $ SError paramsDoNotMatchMsg
   where
     paramsDoNotMatchMsg = "Parameters do not match"
     getParamTypes ts = typeFromParam . functionParams . (M.!) ts
