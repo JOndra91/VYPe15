@@ -19,21 +19,15 @@ import Control.Monad.Writer (MonadWriter, WriterT, runWriterT)
 import Data.Either (Either(Left, Right))
 import Data.Function (($), (.))
 import Data.Functor (Functor)
+import Data.List (tail)
 import Data.Maybe (Maybe)
 import Data.String (String)
 import Text.Show (Show)
-import Data.List (tail)
 
 import VYPe15.Types.AST (DataType)
 import VYPe15.Types.SymbolTable
-    ( DataId
-    , DataTable
-    , FunctionTable
-    , LabelId
-    , VarId
-    , Variable(Variable)
-    , VariableTable
-    )
+    (DataId, DataTable, FunctionTable, LabelId, VarId, VariableTable)
+import VYPe15.Types.TAC (TAC)
 
 newtype SError
     = SError String
@@ -53,20 +47,20 @@ data AnalyzerState = AnalyzerState
 
 newtype SemanticAnalyzer a
     = SemanticAnalyzer { runSemAnalyzer ::
-        ExceptT SError (WriterT  [String] (State AnalyzerState)) a }
+        ExceptT SError (WriterT  [TAC] (State AnalyzerState)) a }
   deriving
     ( Functor
     , Applicative
     , Monad
     , MonadError SError
     , MonadState AnalyzerState
-    , MonadWriter [String]
+    , MonadWriter [TAC]
     )
 
 evalSemAnalyzer
   :: AnalyzerState
   -> SemanticAnalyzer a
-  -> Either SError [String]
+  -> Either SError [TAC]
 evalSemAnalyzer s m =
     case (`evalState` s) . runWriterT . runExceptT $ runSemAnalyzer m of
         (Left e, _) -> Left e
@@ -127,6 +121,3 @@ newDataId = state $ \s@AnalyzerState{dataId} ->
 newLabelId :: SemanticAnalyzer LabelId
 newLabelId = state $ \s@AnalyzerState{labelId} ->
     let i = succ labelId in (labelId, s {labelId = i})
-
-mkVar :: DataType -> SemanticAnalyzer Variable
-mkVar dt = (`Variable` dt) <$> newVarId

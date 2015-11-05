@@ -19,9 +19,10 @@ executable VYPe15
                        VYPe15.Internal.Parser
                        VYPe15.Internal.Semantics
                        VYPe15.Types.AST
-                       VYPe15.Types.Tokens
                        VYPe15.Types.Semantics
                        VYPe15.Types.SymbolTable
+                       VYPe15.Types.TAC
+                       VYPe15.Types.Tokens
   default-language:    Haskell2010
   build-depends:       base >= 4.7 && < 5
                        , array

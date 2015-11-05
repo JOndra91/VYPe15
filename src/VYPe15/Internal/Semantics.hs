@@ -13,6 +13,7 @@ import Control.Applicative (pure, (<$>), (<*>))
 import Control.Monad
     (mapM, mapM_, return, sequence, unless, void, when, (>>), (>>=))
 import Control.Monad.Error.Class (throwError)
+import Control.Monad.Writer (tell)
 import Data.Bool (Bool(False, True), not, otherwise, (&&), (||))
 import Data.Either (Either)
 import Data.Eq ((/=), (==))
@@ -21,10 +22,9 @@ import Data.Function (($), (.))
 import Data.Functor (fmap)
 import Data.List (elem, length, zipWith)
 import Data.Map as M (empty, fromList, insert, keys, lookup, (!))
-import Data.Maybe
-    (Maybe(Just, Nothing), fromJust, fromMaybe, isJust, maybe)
+import Data.Maybe (Maybe(Just, Nothing), fromJust, fromMaybe, isJust, maybe)
 import Data.Monoid ((<>))
-import Data.String (String)
+import Data.String (IsString(fromString), String)
 import Text.Show (show)
 
 import VYPe15.Types.AST
@@ -32,7 +32,7 @@ import VYPe15.Types.AST
     , Exp(AND, Cast, ConsChar, ConsNum, ConsString, Div, Eq, FuncCallExp, Greater, GreaterEq, IdentifierExp, Less, LessEq, Minus, Mod, NOT, NonEq, OR, Plus, Times)
     , FunDeclrOrDef(FunDeclr, FunDef)
     , Identifier(Identifier, getId)
-    , Param(Param, AnonymousParam)
+    , Param(AnonymousParam, Param)
     , Program
     , Stat(Assign, FuncCall, If, Return, VarDef, While)
     , getParamType
@@ -44,9 +44,10 @@ import VYPe15.Types.Semantics
     , evalSemAnalyzer
     , getFunc
     , getVars
-    , mkVar
     , modifyFunc
     , modifyVars
+    , newLabelId
+    , newVarId
     , popVars
     , pushVars
     , putReturnType
@@ -58,8 +59,9 @@ import VYPe15.Types.SymbolTable
     , Variable(Variable, varType)
     , builtInFunctions
     )
+import VYPe15.Types.TAC (Label(Label'), Operator, TAC(TAC))
 
-semanticAnalysis :: Program -> Either SError [String]
+semanticAnalysis :: Program -> Either SError [TAC]
 semanticAnalysis ast = evalSemAnalyzer state $ semanticAnalysis' ast
   where
     state = AnalyzerState
@@ -248,11 +250,10 @@ checkFunctionCall i es = do
       where
         typeFromParam = fmap getParamType . fromMaybe []
 
--- {{{ Utility functions ------------------------------------------------------
+-- {{{ Variable related functions ---------------------------------------------
 
-withHead :: (a -> a) -> [a] -> [a]
-withHead f (h:t) = f h : t
-withHead _ [] = []
+mkVar :: DataType -> SemanticAnalyzer Variable
+mkVar dt = (`Variable` dt) <$> newVarId
 
 mkVarJust :: DataType -> SemanticAnalyzer (Maybe Variable)
 mkVarJust dt = Just <$> mkVar dt
@@ -267,5 +268,32 @@ hasType :: Maybe Variable -> DataType -> Bool
 hasType v t = case v of
     Just (Variable _ t') -> t == t'
     Nothing              -> False
+
+-- }}} Variable related functions ---------------------------------------------
+-- {{{ Label related functions ------------------------------------------------
+
+mkLabel :: String -> SemanticAnalyzer Label
+mkLabel s = Label' . fromString . ((s <> "_") <>) . show <$> newLabelId
+
+mkLabel' :: SemanticAnalyzer Label
+mkLabel' = mkLabel "label"
+
+-- }}} Label related functions ------------------------------------------------
+-- {{{ Three address code related functions -----------------------------------
+
+tellTac :: Variable -> Operator -> SemanticAnalyzer ()
+tellTac dest op = tell [TAC dest op]
+
+infixr 5 <=
+
+(<=) :: Variable -> Operator -> SemanticAnalyzer ()
+(<=) = tellTac
+
+-- }}} Three address code related functions -----------------------------------
+-- {{{ Utility functions ------------------------------------------------------
+
+withHead :: (a -> a) -> [a] -> [a]
+withHead f (h:t) = f h : t
+withHead _ [] = []
 
 -- }}} Utility functions ------------------------------------------------------

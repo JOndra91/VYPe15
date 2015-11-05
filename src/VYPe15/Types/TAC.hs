@@ -11,7 +11,7 @@
 -- Portability:  NoImplicitPrelude
 --
 -- Type for three-adress code (TAC)
-module VYPe15.Type.TAC
+module VYPe15.Types.TAC
   where
 
 import Data.Eq (Eq)
