@@ -35,23 +35,26 @@ data Variable = Variable
     { varId :: VarId
     , varType :: DataType
     }
+  deriving (Show)
 
 type VariableTable = M.Map Identifier Variable
 
 data FunctionState
     = FuncDefined
     | FuncDeclared
+  deriving (Show)
 
 data Function = Function
     { isDefined :: FunctionState
     , functionReturn :: Maybe DataType
     , functionParams :: Maybe [Param]
     }
+  deriving (Show)
 
 type FunctionTable = M.Map Identifier Function
 
-data ProgramData
-    = String Text
+data ProgramData = String Text
+  deriving (Show)
 
 type DataTable = M.Map DataId ProgramData
 
