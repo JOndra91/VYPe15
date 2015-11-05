@@ -55,7 +55,7 @@ import VYPe15.Types.Semantics
 import VYPe15.Types.SymbolTable
     ( Function(Function, functionParams, functionReturn)
     , FunctionState(FuncDeclared, FuncDefined)
-    , Variable(varType)
+    , Variable(Variable, varType)
     , builtInFunctions
     )
 
@@ -179,7 +179,7 @@ findVar i = getVars >>= search
     search [] = throwError $ SError
         $ "Identifier '" <> getId i <> "' is not defined."
 
-checkExpression :: Exp -> SemanticAnalyzer DataType
+checkExpression :: Exp -> SemanticAnalyzer Variable
 checkExpression = \case
     OR e1 e2 -> matchLogical "||" e1 e2
     AND e1 e2 -> matchLogical "||" e1 e2
@@ -196,49 +196,49 @@ checkExpression = \case
     Mod e1 e2 -> matchNumeric "%" e1 e2
     NOT e -> do
         t <- checkExpression e
-        if and [t == DInt]
-          then return DInt
+        if varType t == DInt
+          then mkVar DInt
           else throwError $ SError $ cannotMatchMsg' t
-    Cast t e -> checkExpression e >> return t
-    ConsNum _ -> return DInt
-    ConsString _ -> return DString
-    ConsChar _ ->  return DChar
+    Cast t e -> checkExpression e >> mkVar t
+    ConsNum _ -> mkVar DInt
+    ConsString _ -> mkVar DString
+    ConsChar _ ->  mkVar DChar
     FuncCallExp i es -> checkFunctionCall i es
-    IdentifierExp i -> varType <$> findVar (Identifier i)
+    IdentifierExp i -> findVar (Identifier i)
   where
     matchLogical op e1 e2 = do
         t1 <- checkExpression e1
         t2 <- checkExpression e2
-        if (t1 == DInt) && (t2 == DInt)
-          then return DInt
+        if (varType t1 == DInt) && (varType t2 == DInt)
+          then mkVar DInt
           else throwError $ SError $ cannotMatchLogMsg op t1 t2
     matchRelation op e1 e2 = do
         t1 <- checkExpression e1
         t2 <- checkExpression e2
-        if t1 == t2
-          then return DInt
+        if varType t1 == varType t2
+          then mkVar DInt
           else throwError $ SError $ cannotMatchRelMsg op t1 t2
     matchNumeric = matchLogical
-    cannotMatchRelMsg op t1 t2 =
+    cannotMatchRelMsg op (Variable _ t1) (Variable _ t2) =
         "Cannot match '" <> show t1 <> "' with '" <> show t2
             <> "' in the '" <> op <> "' relation expression."
-    cannotMatchLogMsg op DInt t =
+    cannotMatchLogMsg op (Variable _ DInt) (Variable _ t) =
         "Cannot match '" <> show t <> "' with 'int' in '" <> op
         <> "' expression."
-    cannotMatchLogMsg op t DInt = cannotMatchLogMsg op DInt t
-    cannotMatchLogMsg op t1 t2 =
+    cannotMatchLogMsg op t v@(Variable _ DInt) = cannotMatchLogMsg op v t
+    cannotMatchLogMsg op (Variable _ t1) (Variable _ t2) =
         "Cannot match '" <> show t1 <> "' nor '" <> show t2
             <> "' witn 'int' in the '" <> op <> "' numeric expression."
-    cannotMatchMsg' t =
+    cannotMatchMsg' (Variable _ t) =
         "Cannot match '" <> show t <> "' with int in '!' expression."
 
-checkFunctionCall :: Identifier -> [Exp] -> SemanticAnalyzer DataType
+checkFunctionCall :: Identifier -> [Exp] -> SemanticAnalyzer Variable
 checkFunctionCall i es = do
         checkFunctionDecl i
         actualTs <- mapM checkExpression es
         t <- getFunc
-        if actualTs == getParamTypes t i
-          then return . fromMaybe DInt . functionReturn $ t M.! i
+        if (varType <$> actualTs) == getParamTypes t i
+          then mkVar . fromMaybe DInt . functionReturn $ t M.! i
           else throwError $ SError paramsDoNotMatchMsg
   where
     paramsDoNotMatchMsg = "Parameters do not match"
