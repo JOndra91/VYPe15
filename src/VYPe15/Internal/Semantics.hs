@@ -22,7 +22,7 @@ import Data.Functor (fmap)
 import Data.List (elem, length, zipWith)
 import Data.Map as M (empty, fromList, insert, keys, lookup, (!))
 import Data.Maybe
-    (Maybe(Just, Nothing), fromJust, fromMaybe, isJust)
+    (Maybe(Just, Nothing), fromJust, fromMaybe, isJust, maybe)
 import Data.Monoid ((<>))
 import Data.String (String)
 import Text.Show (show)
@@ -179,7 +179,7 @@ findVar i = getVars >>= search
     search [] = throwError $ SError
         $ "Identifier '" <> getId i <> "' is not defined."
 
-checkExpression :: Exp -> SemanticAnalyzer Variable
+checkExpression :: Exp -> SemanticAnalyzer (Maybe Variable)
 checkExpression = \case
     OR e1 e2 -> matchLogical "||" e1 e2
     AND e1 e2 -> matchLogical "||" e1 e2
@@ -196,49 +196,51 @@ checkExpression = \case
     Mod e1 e2 -> matchNumeric "%" e1 e2
     NOT e -> do
         t <- checkExpression e
-        if varType t == DInt
-          then mkVar DInt
+        if mVarType t == Just DInt
+          then mkVarJust DInt
           else throwError $ SError $ cannotMatchMsg' t
-    Cast t e -> checkExpression e >> mkVar t
-    ConsNum _ -> mkVar DInt
-    ConsString _ -> mkVar DString
-    ConsChar _ ->  mkVar DChar
+    Cast t e -> checkExpression e >> mkVarJust t
+    ConsNum _ -> mkVarJust DInt
+    ConsString _ -> mkVarJust DString
+    ConsChar _ ->  mkVarJust DChar
     FuncCallExp i es -> checkFunctionCall i es
-    IdentifierExp i -> findVar (Identifier i)
+    IdentifierExp i -> Just <$> findVar (Identifier i)
   where
     matchLogical op e1 e2 = do
         t1 <- checkExpression e1
         t2 <- checkExpression e2
-        if (varType t1 == DInt) && (varType t2 == DInt)
-          then mkVar DInt
+        if t1 `hasType` DInt && t2 `hasType` DInt
+          then mkVarJust DInt
           else throwError $ SError $ cannotMatchLogMsg op t1 t2
+
     matchRelation op e1 e2 = do
         t1 <- checkExpression e1
         t2 <- checkExpression e2
-        if varType t1 == varType t2
-          then mkVar DInt
+        if isJust t1 && mVarType t1 == mVarType t2
+          then mkVarJust DInt
           else throwError $ SError $ cannotMatchRelMsg op t1 t2
-    matchNumeric = matchLogical
-    cannotMatchRelMsg op (Variable _ t1) (Variable _ t2) =
-        "Cannot match '" <> show t1 <> "' with '" <> show t2
-            <> "' in the '" <> op <> "' relation expression."
-    cannotMatchLogMsg op (Variable _ DInt) (Variable _ t) =
-        "Cannot match '" <> show t <> "' with 'int' in '" <> op
-        <> "' expression."
-    cannotMatchLogMsg op t v@(Variable _ DInt) = cannotMatchLogMsg op v t
-    cannotMatchLogMsg op (Variable _ t1) (Variable _ t2) =
-        "Cannot match '" <> show t1 <> "' nor '" <> show t2
-            <> "' witn 'int' in the '" <> op <> "' numeric expression."
-    cannotMatchMsg' (Variable _ t) =
-        "Cannot match '" <> show t <> "' with int in '!' expression."
 
-checkFunctionCall :: Identifier -> [Exp] -> SemanticAnalyzer Variable
+    matchNumeric = matchLogical
+
+    cannotMatchRelMsg op t1 t2 =
+        "Cannot match '" <> varShow t1 <> "' with '" <> varShow t2
+            <> "' in the '" <> op <> "' relation expression."
+
+    cannotMatchLogMsg op t1 t2
+        | t1 `hasType` DInt = cannotMatchLogMsg op t2 t1
+        | otherwise = "Cannot match '" <> varShow t1 <> "' with 'int' in '"
+            <> op <> "' expression."
+
+    cannotMatchMsg' t =
+        "Cannot match '" <> varShow t <> "' with 'int' in '!' expression."
+
+checkFunctionCall :: Identifier -> [Exp] -> SemanticAnalyzer (Maybe Variable)
 checkFunctionCall i es = do
         checkFunctionDecl i
         actualTs <- mapM checkExpression es
         t <- getFunc
-        if (varType <$> actualTs) == getParamTypes t i
-          then mkVar . fromMaybe DInt . functionReturn $ t M.! i
+        if (mVarType <$> actualTs) == (Just <$> getParamTypes t i)
+          then maybe (pure Nothing) mkVarJust . functionReturn $ t M.! i
           else throwError $ SError paramsDoNotMatchMsg
   where
     paramsDoNotMatchMsg = "Parameters do not match"
@@ -251,5 +253,19 @@ checkFunctionCall i es = do
 withHead :: (a -> a) -> [a] -> [a]
 withHead f (h:t) = f h : t
 withHead _ [] = []
+
+mkVarJust :: DataType -> SemanticAnalyzer (Maybe Variable)
+mkVarJust dt = Just <$> mkVar dt
+
+mVarType :: Maybe Variable -> Maybe DataType
+mVarType = fmap varType
+
+varShow :: Maybe Variable -> String
+varShow = maybe "void" (show . varType)
+
+hasType :: Maybe Variable -> DataType -> Bool
+hasType v t = case v of
+    Just (Variable _ t') -> t == t'
+    Nothing              -> False
 
 -- }}} Utility functions ------------------------------------------------------
