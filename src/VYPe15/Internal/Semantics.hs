@@ -56,10 +56,15 @@ import VYPe15.Types.Semantics
 import VYPe15.Types.SymbolTable
     ( Function(Function, functionParams, functionReturn)
     , FunctionState(FuncDeclared, FuncDefined)
+    , Id(Id)
     , Variable(Variable, varType)
     , builtInFunctions
     )
 import VYPe15.Types.TAC (Label(Label'), Operator, TAC(TAC))
+import qualified VYPe15.Types.TAC as Const (Constant(Char, Int, String))
+import qualified VYPe15.Types.TAC as Op
+    ( Operator(Add, And, Const, Div, Eq, GE, GT, LE, LT, Mod, Mul, Neq, Not, Or, Set, Sub)
+    )
 
 semanticAnalysis :: Program -> Either SError [TAC]
 semanticAnalysis ast = evalSemAnalyzer state $ semanticAnalysis' ast
@@ -149,8 +154,10 @@ checkStatements ss = pushVars M.empty >> mapM_ checkStatement ss >> popVars
 
     checkStatement = \case
         Assign i e -> do
-            void $ findVar i
-            void $ checkExpression e
+            dest <- findVar i
+            res <- checkExpression e
+            when (isJust res)
+              $ void $ dest <= Op.Set (fromJust res)
         VarDef d i ->
             mapM_ (`putVar` d) i
         If e s s' -> do
@@ -183,58 +190,67 @@ findVar i = getVars >>= search
 
 checkExpression :: Exp -> SemanticAnalyzer (Maybe Variable)
 checkExpression = \case
-    OR e1 e2 -> matchLogical "||" e1 e2
-    AND e1 e2 -> matchLogical "||" e1 e2
-    Eq e1 e2 -> matchRelation "==" e1 e2
-    NonEq e1 e2 -> matchRelation "!=" e1 e2
-    Less e1 e2 -> matchRelation "<" e1 e2
-    Greater e1 e2 -> matchRelation ">" e1 e2
-    LessEq e1 e2 -> matchRelation "<=" e1 e2
-    GreaterEq e1 e2 -> matchRelation ">=" e1 e2
-    Plus e1 e2 -> matchNumeric "+" e1 e2
-    Minus e1 e2 -> matchNumeric "-" e1 e2
-    Times e1 e2 -> matchNumeric "*" e1 e2
-    Div e1 e2 -> matchNumeric "/" e1 e2
-    Mod e1 e2 -> matchNumeric "%" e1 e2
-    NOT e -> do
-        t <- checkExpression e
-        if mVarType t == Just DInt
-          then mkVarJust DInt
-          else throwError $ SError $ cannotMatchMsg' t
-    Cast t e -> checkExpression e >> mkVarJust t
-    ConsNum _ -> mkVarJust DInt
-    ConsString _ -> mkVarJust DString
-    ConsChar _ ->  mkVarJust DChar
+    OR e1 e2 -> matchLogical Op.Or e1 e2
+    AND e1 e2 -> matchLogical Op.And e1 e2
+    Eq e1 e2 -> matchRelation Op.Eq e1 e2
+    NonEq e1 e2 -> matchRelation Op.Neq e1 e2
+    Less e1 e2 -> matchRelation Op.LT e1 e2
+    Greater e1 e2 -> matchRelation Op.GT e1 e2
+    LessEq e1 e2 -> matchRelation Op.LE e1 e2
+    GreaterEq e1 e2 -> matchRelation Op.GE e1 e2
+    Plus e1 e2 -> matchNumeric Op.Add e1 e2
+    Minus e1 e2 -> matchNumeric Op.Sub e1 e2
+    Times e1 e2 -> matchNumeric Op.Mul e1 e2
+    Div e1 e2 -> matchNumeric Op.Div e1 e2
+    Mod e1 e2 -> matchNumeric Op.Mod e1 e2
+    NOT e -> checkExpression e >>= \case
+        Just v@(Variable _ DInt) -> DInt *= Op.Not v
+        t -> throwError $ SError $ cannotMatchMsg' t
+    Cast t e -> checkExpression e >>= \case
+        Just v -> t *= Op.Set v
+        v -> throwError $ SError $ invalidCast v t
+    ConsNum i -> DInt *= Op.Const (Const.Int i)
+    ConsString s -> DString *= Op.Const (Const.String $ fromString s)
+    ConsChar c ->  DChar *= Op.Const (Const.Char c)
     FuncCallExp i es -> checkFunctionCall i es
     IdentifierExp i -> Just <$> findVar (Identifier i)
   where
     matchLogical op e1 e2 = do
         t1 <- checkExpression e1
         t2 <- checkExpression e2
-        if t1 `hasType` DInt && t2 `hasType` DInt
-          then mkVarJust DInt
-          else throwError $ SError $ cannotMatchLogMsg op t1 t2
+        case (t1, t2) of
+            (Just v1@(Variable _ DInt), Just v2@(Variable _ DInt)) ->
+                DInt *= op v1 v2
+            _ -> throwError $ SError $ cannotMatchLogMsg (op2 op) t1 t2
 
     matchRelation op e1 e2 = do
         t1 <- checkExpression e1
         t2 <- checkExpression e2
         if isJust t1 && mVarType t1 == mVarType t2
-          then mkVarJust DInt
-          else throwError $ SError $ cannotMatchRelMsg op t1 t2
+          then DInt *= op (fromJust t1) (fromJust t2)
+          else throwError $ SError $ cannotMatchRelMsg (op2 op) t1 t2
 
     matchNumeric = matchLogical
 
     cannotMatchRelMsg op t1 t2 =
         "Cannot match '" <> varShow t1 <> "' with '" <> varShow t2
-            <> "' in the '" <> op <> "' relation expression."
+            <> "' in the '" <> show op <> "' relation expression."
 
     cannotMatchLogMsg op t1 t2
         | t1 `hasType` DInt = cannotMatchLogMsg op t2 t1
         | otherwise = "Cannot match '" <> varShow t1 <> "' with 'int' in '"
-            <> op <> "' expression."
+            <> show op <> "' expression."
 
     cannotMatchMsg' t =
         "Cannot match '" <> varShow t <> "' with 'int' in '!' expression."
+
+    invalidCast :: Maybe Variable -> DataType -> String
+    invalidCast from to = "Cannot cast from type '" <> varShow from
+        <> "' to type'" <> show to <> "'."
+
+    dummyVar = Variable (Id 0) DInt
+
+    op2 op = op dummyVar dummyVar
 
 checkFunctionCall :: Identifier -> [Exp] -> SemanticAnalyzer (Maybe Variable)
 checkFunctionCall i es = do
@@ -286,8 +302,15 @@ tellTac dest op = tell [TAC dest op]
 
 infixr 5 <=
 
-(<=) :: Variable -> Operator -> SemanticAnalyzer ()
-(<=) = tellTac
+-- | Writes the operation to monad writer with destination to given variable.
+(<=) :: Variable -> Operator -> SemanticAnalyzer (Maybe Variable)
+var <= op = tellTac var op >> pure (Just var)
+
+-- | Writes the operation to new variable with given type.
+(*=) :: DataType
+    -> Operator
+    -> SemanticAnalyzer (Maybe Variable)
+dt *= op = mkVar dt >>= (<= op)
 
 -- }}} Three address code related functions -----------------------------------
 -- {{{ Utility functions ------------------------------------------------------

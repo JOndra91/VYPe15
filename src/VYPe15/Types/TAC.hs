@@ -1,5 +1,5 @@
-{-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE NoImplicitPrelude #-}
 -- |
 -- Module:       $HEADER$
 -- Description:  Type for three-adress code (TAC)
@@ -14,9 +14,11 @@
 module VYPe15.Types.TAC
   where
 
+import Data.Char (Char)
 import Data.Eq (Eq)
-import Text.Show (Show)
+import Data.Int (Int32)
 import Data.String (IsString)
+import Text.Show (Show)
 
 import Data.Text (Text)
 
@@ -31,13 +33,14 @@ data Operator
     | Set Variable
     | And Variable Variable
     | Or Variable Variable
-    | Neg Variable
+    | Not Variable
     | Eq  Variable Variable
     | Neq Variable Variable
     | LT Variable Variable
     | LE Variable Variable
     | GT Variable Variable
     | GE Variable Variable
+    | Const Constant
     | Label Label
     | Call Label
     | Begin
@@ -49,6 +52,12 @@ data Operator
 
 newtype Label = Label' Text
   deriving (Show, Eq, IsString)
+
+data Constant
+    = Int Int32
+    | Char Char
+    | String Text
+  deriving (Show)
 
 data TAC = TAC Variable Operator
   deriving (Show)

@@ -4,9 +4,11 @@ module VYPe15.Internal.Parser
     (parseVYPe15)
 where
 
+import Prelude (fromInteger)
+
 import Control.Applicative ((<$>), (<*), (<*>))
 import Control.Monad (return, (>>))
-import Data.Function (($))
+import Data.Function (($), (.))
 import Data.Functor (fmap)
 import Data.Functor.Identity (Identity)
 import Data.Maybe (Maybe(Just, Nothing))
@@ -79,7 +81,7 @@ term = funcCall <|> m_parens exprparser
     <|> IdentifierExp <$> m_identifier
     <|> ConsChar <$> m_charLit
     <|> ConsString <$> m_stringLit
-    <|> ConsNum <$> m_integer
+    <|> ConsNum . fromInteger <$> m_integer
   where
     funcCall = try $ FuncCallExp
         <$> fmap Identifier m_identifier

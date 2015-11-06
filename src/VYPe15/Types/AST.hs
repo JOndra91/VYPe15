@@ -1,17 +1,16 @@
-{-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NoImplicitPrelude #-}
 
 module VYPe15.Types.AST
 where
 
 import Data.Char (Char)
 import Data.Eq (Eq)
+import Data.Int (Int32)
 import Data.Maybe (Maybe)
 import Data.Ord (Ord)
 import Data.String (IsString(fromString), String)
 import Text.Show (Show(show))
-
-import Prelude (Integer)
 
 type Program
   = [FunDeclrOrDef]
@@ -53,7 +52,7 @@ data Exp
   | Mod Exp Exp
   | NOT Exp
   | Cast DataType Exp
-  | ConsNum Integer
+  | ConsNum Int32
   | ConsString String
   | ConsChar Char
   | FuncCallExp Identifier [Exp]
