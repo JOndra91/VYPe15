@@ -62,11 +62,11 @@ import VYPe15.Types.SymbolTable
     , builtInFunctions
     )
 import VYPe15.Types.TAC
-    (Label(Label'), Operator, TAC(Label, Begin, End, JmpZ, Goto))
+    (Label(Label'), Operator, TAC(Begin, End, Goto, JmpZ, Label, Void))
 import qualified VYPe15.Types.TAC as TAC (TAC(Assign, Return))
 import qualified VYPe15.Types.TAC as Const (Constant(Char, Int, String))
 import qualified VYPe15.Types.TAC as Op
-    ( Operator(Add, And, Const, Div, Eq, GE, GT, LE, LT, Mod, Mul, Neq, Not, Or, Set, Sub)
+    ( Operator(Add, And, Call, Const, Div, Eq, GE, GT, LE, LT, Mod, Mul, Neq, Not, Or, Set, Sub)
     )
 
 semanticAnalysis :: Program -> Either SError [TAC]
@@ -125,7 +125,7 @@ funDeclrOrDef = \case
         when (isJust params) $ paramsToMap (fromJust params) >>= pushVars
         putReturnType returnType'
         tell [Begin]
-        tell [Label (Label' . fromString $ getId identifier)]
+        tell [Label $ labelFromId identifier]
         checkStatements stats
         tell [End]
 
@@ -144,13 +144,12 @@ checkStatements ss = pushVars M.empty >> mapM_ checkStatement ss >> popVars
         modifyVars $ withHead $ M.insert id v
 
     undefVariable i = "Variable '" <> show i <> "'is not defined."
-    voidAssign i = "Cannot assign void to variable '" <> show i <> "'."
 
     checkStatement = \case
         Assign i e -> do
             dest <- findVar i
             res <- checkExpression e
-            unless (isJust res) $ throwError $ SError $ voidAssign i
+            unless (isJust res) $ throwError $ SError voidAssign
             void $ dest <= Op.Set (fromJust res)
         VarDef d i ->
             mapM_ (`putVar` d) i
@@ -186,7 +185,9 @@ checkStatements ss = pushVars M.empty >> mapM_ checkStatement ss >> popVars
             checkStatements s
             tell [Goto whileSL]
             tell [Label whileEL]
-        FuncCall i es -> void $ checkFunctionCall i es
+        FuncCall i es -> do
+            void $ checkFunctionCall i es
+            tell [Void $ Op.Call $ labelFromId i]
 
 checkFunctionDecl :: Identifier -> SemanticAnalyzer ()
 checkFunctionDecl i = do
@@ -227,7 +228,11 @@ checkExpression = \case
     ConsNum i -> DInt *= Op.Const (Const.Int i)
     ConsString s -> DString *= Op.Const (Const.String $ fromString s)
     ConsChar c ->  DChar *= Op.Const (Const.Char c)
-    FuncCallExp i es -> checkFunctionCall i es
+    FuncCallExp i es ->
+        checkFunctionCall i es >>= \case
+          Just t -> t *= Op.Call (labelFromId i)
+          Nothing -> throwError $ SError voidAssign
+
     IdentifierExp i -> Just <$> findVar (Identifier i)
   where
     matchLogical op e1 e2 = do
@@ -267,14 +272,14 @@ checkExpression = \case
 
     op2 op = op dummyVar dummyVar
 
-checkFunctionCall :: Identifier -> [Exp] -> SemanticAnalyzer (Maybe Variable)
+checkFunctionCall :: Identifier -> [Exp] -> SemanticAnalyzer (Maybe DataType)
 checkFunctionCall i es = do
         checkFunctionDecl i
         actualTs <- mapM checkExpression es
         t <- getFunc
-        if (mVarType <$> actualTs) == (Just <$> getParamTypes t i)
-          then maybe (pure Nothing) mkVarJust . functionReturn $ t M.! i
-          else throwError $ SError paramsDoNotMatchMsg
+        unless ((mVarType <$> actualTs) == (Just <$> getParamTypes t i))
+          $ throwError $ SError paramsDoNotMatchMsg
+        return $ functionReturn $ t M.! i
   where
     paramsDoNotMatchMsg = "Parameters do not match"
     getParamTypes ts = typeFromParam . functionParams . (M.!) ts
@@ -334,4 +339,10 @@ withHead :: (a -> a) -> [a] -> [a]
 withHead f (h:t) = f h : t
 withHead _ [] = []
 
+labelFromId :: Identifier -> Label
+labelFromId = Label' . fromString . getId
+
 -- }}} Utility functions ------------------------------------------------------
+
+voidAssign :: String
+voidAssign = "Cannot assign void to variable."

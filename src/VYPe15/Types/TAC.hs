@@ -60,6 +60,7 @@ data Constant
 
 data TAC
     = Assign Variable Operator
+    | Void Operator
     | Label Label
     | Begin
     | End
@@ -71,6 +72,7 @@ data TAC
 strTac :: TAC -> Text
 strTac = \case
     Assign v op -> "  " <> strVar v <> " := " <> strOp op
+    Void op -> "  " <> strOp op
     Label l -> label' l <> ":"
     Begin -> "Begin"
     End -> "End"
@@ -100,7 +102,7 @@ strTac = \case
         GT a b -> op2 a b ">"
         GE a b -> op2 a b ">="
         Const c -> fromString $ show c
-        Call l -> fromString $ show l <> "()"
+        Call l -> label' l <> "()"
       where
         op1 :: Variable -> Text -> Text
         op1 a op = op <> strVar a
