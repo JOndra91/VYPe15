@@ -9,7 +9,7 @@ module VYPe15.Internal.Semantics
 
 import Prelude (Bounded(minBound))
 
-import Control.Applicative (pure, (<$>), (<*>))
+import Control.Applicative (pure, (<$>))
 import Control.Monad
     (mapM, mapM_, return, sequence, unless, void, when, (>>), (>>=))
 import Control.Monad.Error.Class (throwError)
@@ -17,7 +17,7 @@ import Control.Monad.Writer (tell)
 import Data.Bool (Bool(False, True), not, otherwise, (&&), (||))
 import Data.Either (Either)
 import Data.Eq ((/=), (==))
-import Data.Foldable (and, foldlM)
+import Data.Foldable (and)
 import Data.Function (($), (.))
 import Data.Functor (fmap)
 import Data.List (elem, length, zipWith)
@@ -128,21 +128,6 @@ funDeclrOrDef = \case
     paramToVar (Param dt id) = (id,) <$> mkVar dt
     paramToVar AnonymousParam{} = throwError
         $ SError "Unexpected anonymous parameter."
-
-checkFunctionDef
-    :: FunDeclrOrDef
-    -> SemanticAnalyzer ()
-checkFunctionDef = \case
-    (FunDef _ _ p s) -> do
-        putParams p
-        checkStatements s
-    _ -> throwError $ SError "Sorry, internal semantic analyzer error occoured."
-  where
-    putParams Nothing = return ()
-    putParams (Just p) = parameters >>= pushVars
-      where
-        parameters = foldlM
-          (\m (Param d i) -> M.insert i <$> mkVar d <*> pure m) M.empty p
 
 checkStatements :: [Stat] -> SemanticAnalyzer ()
 checkStatements ss = pushVars M.empty >> mapM_ checkStatement ss >> popVars

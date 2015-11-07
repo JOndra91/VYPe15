@@ -27,9 +27,9 @@ data IdType
     | Data
     | Label
 
-type VarId = Id Var
-type DataId = Id Data
-type LabelId = Id Label
+type VarId = Id 'Var
+type DataId = Id 'Data
+type LabelId = Id 'Label
 
 data Variable = Variable
     { varId :: VarId
