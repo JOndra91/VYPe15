@@ -142,12 +142,15 @@ checkStatements ss = pushVars M.empty >> mapM_ checkStatement ss >> popVars
         v <- mkVar d
         modifyVars $ withHead $ M.insert id v
 
+    undefVariable i = "Variable '" <> show i <> "'is not defined."
+    voidAssign i = "Cannot assign void to variable '" <> show i <> "'."
+
     checkStatement = \case
         Assign i e -> do
             dest <- findVar i
             res <- checkExpression e
-            when (isJust res)
-              $ void $ dest <= Op.Set (fromJust res)
+            unless (isJust res) $ throwError $ SError $ voidAssign i
+            void $ dest <= Op.Set (fromJust res)
         VarDef d i ->
             mapM_ (`putVar` d) i
         If e s s' -> do
