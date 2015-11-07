@@ -43,6 +43,7 @@ import VYPe15.Types.Semantics
     , SemanticAnalyzer
     , evalSemAnalyzer
     , getFunc
+    , getReturnType
     , getVars
     , modifyFunc
     , modifyVars
@@ -123,7 +124,9 @@ funDeclrOrDef = \case
           (Function FuncDefined returnType' params)
         when (isJust params) $ paramsToMap (fromJust params) >>= pushVars
         putReturnType returnType'
+        tell [Begin]
         checkStatements stats
+        tell [End]
 
     paramsToMap ps = (M.fromList <$>) . sequence $ fmap paramToVar ps
 
@@ -159,10 +162,14 @@ checkStatements ss = pushVars M.empty >> mapM_ checkStatement ss >> popVars
             tell [Label elseL]
             checkStatements s'
             tell [Label endL]
-        Return (Just e) ->
-            void $ checkExpression e
-        Return Nothing ->
-            return ()
+        Return Nothing -> do
+            expected <- getReturnType
+            unless (expected == Nothing) $ throwError $ SError "TBD"
+        Return (Just e) -> do
+            expected <- getReturnType
+            actual <- checkExpression e
+            unless (expected == (mVarType actual)) $ throwError $ SError "TBD"
+            tell [TAC.Return (fromJust actual)]
         While e s -> do
             whileSL <- mkLabel "WhileStart"
             whileEL <- mkLabel "WhileEnd"
