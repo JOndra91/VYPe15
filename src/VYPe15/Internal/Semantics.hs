@@ -60,7 +60,9 @@ import VYPe15.Types.SymbolTable
     , Variable(Variable, varType)
     , builtInFunctions
     )
-import VYPe15.Types.TAC (Label(Label'), Operator, TAC(TAC))
+import VYPe15.Types.TAC
+    (Label(Label'), Operator, TAC(Label, Begin, End, JmpZ, Goto))
+import qualified VYPe15.Types.TAC as TAC (TAC(Assign, Return))
 import qualified VYPe15.Types.TAC as Const (Constant(Char, Int, String))
 import qualified VYPe15.Types.TAC as Op
     ( Operator(Add, And, Const, Div, Eq, GE, GT, LE, LT, Mod, Mul, Neq, Not, Or, Set, Sub)
@@ -146,9 +148,17 @@ checkStatements ss = pushVars M.empty >> mapM_ checkStatement ss >> popVars
         VarDef d i ->
             mapM_ (`putVar` d) i
         If e s s' -> do
-            void $ checkExpression e
+            ifResult <- checkExpression e
+            elseL <- mkLabel "Else"
+            endL <- mkLabel "End"
+            unless (mVarType ifResult == Just DInt)
+                $ throwError $ SError "TBD"
+            tell [JmpZ (fromJust ifResult) elseL]
             checkStatements s
+            tell [Goto endL]
+            tell [Label elseL]
             checkStatements s'
+            tell [Label endL]
         Return (Just e) ->
             void $ checkExpression e
         Return Nothing ->
@@ -282,14 +292,14 @@ mkLabel' = mkLabel "label"
 -- }}} Label related functions ------------------------------------------------
 -- {{{ Three address code related functions -----------------------------------
 
-tellTac :: Variable -> Operator -> SemanticAnalyzer ()
-tellTac dest op = tell [TAC dest op]
+tellAssign :: Variable -> Operator -> SemanticAnalyzer ()
+tellAssign dest op = tell [TAC.Assign dest op]
 
 infixr 5 <=
 
 -- | Writes the operation to monad writer with destination to given variable.
 (<=) :: Variable -> Operator -> SemanticAnalyzer (Maybe Variable)
-var <= op = tellTac var op >> pure (Just var)
+var <= op = tellAssign var op >> pure (Just var)
 
 -- | Writes the operation to new variable with given type.
 (*=) :: DataType

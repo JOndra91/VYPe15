@@ -1,6 +1,6 @@
 int main(void) {
     int a, vysl;
-    if (a<0) {
+    if (a>0) {
     }
     else {
         vysl = 1;

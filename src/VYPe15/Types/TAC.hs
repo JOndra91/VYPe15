@@ -41,13 +41,7 @@ data Operator
     | GT Variable Variable
     | GE Variable Variable
     | Const Constant
-    | Label Label
     | Call Label
-    | Begin
-    | End
-    | JmpZ Variable Label
-    | Goto Label
-    | Return Variable
   deriving (Show)
 
 newtype Label = Label' Text
@@ -59,5 +53,12 @@ data Constant
     | String Text
   deriving (Show)
 
-data TAC = TAC Variable Operator
+data TAC
+    = Assign Variable Operator
+    | Label Label
+    | Begin
+    | End
+    | JmpZ Variable Label
+    | Goto Label
+    | Return Variable
   deriving (Show)
