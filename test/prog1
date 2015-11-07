@@ -11,3 +11,7 @@ int main(void) {
     }
     print((string)vysl);
 }
+
+void doSomething(void) {
+  return;
+}

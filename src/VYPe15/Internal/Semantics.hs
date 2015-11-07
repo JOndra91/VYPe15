@@ -125,6 +125,7 @@ funDeclrOrDef = \case
         when (isJust params) $ paramsToMap (fromJust params) >>= pushVars
         putReturnType returnType'
         tell [Begin]
+        tell [Label (Label' . fromString $ getId identifier)]
         checkStatements stats
         tell [End]
 
@@ -168,11 +169,12 @@ checkStatements ss = pushVars M.empty >> mapM_ checkStatement ss >> popVars
         Return Nothing -> do
             expected <- getReturnType
             unless (expected == Nothing) $ throwError $ SError "TBD"
+            tell [TAC.Return Nothing]
         Return (Just e) -> do
             expected <- getReturnType
             actual <- checkExpression e
             unless (expected == (mVarType actual)) $ throwError $ SError "TBD"
-            tell [TAC.Return (fromJust actual)]
+            tell [TAC.Return actual]
         While e s -> do
             whileSL <- mkLabel "WhileStart"
             whileEL <- mkLabel "WhileEnd"

@@ -20,6 +20,7 @@ import Data.Char (Char)
 import Data.Eq (Eq)
 import Data.Function (($), (.))
 import Data.Int (Int32)
+import Data.Maybe (Maybe, maybe)
 import Data.Monoid ((<>))
 import Data.String (IsString(fromString))
 import Text.Show (Show(show))
@@ -64,7 +65,7 @@ data TAC
     | End
     | JmpZ Variable Label
     | Goto Label
-    | Return Variable
+    | Return (Maybe Variable)
   deriving (Show)
 
 strTac :: TAC -> Text
@@ -75,7 +76,7 @@ strTac = \case
     End -> "End"
     JmpZ v l -> "if (" <> strVar v <> " == 0): GoTo: " <> label' l
     Goto l -> "GoTo: " <> label' l
-    Return v -> "Return: " <> strVar v
+    Return v -> "Return: " <> maybe "()" strVar v
 
   where
     strVar :: Variable -> Text
