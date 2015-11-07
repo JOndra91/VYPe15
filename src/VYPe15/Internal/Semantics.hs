@@ -149,8 +149,8 @@ checkStatements ss = pushVars M.empty >> mapM_ checkStatement ss >> popVars
             mapM_ (`putVar` d) i
         If e s s' -> do
             ifResult <- checkExpression e
-            elseL <- mkLabel "Else"
-            endL <- mkLabel "End"
+            elseL <- mkLabel "IfElse"
+            endL <- mkLabel "IfEnd"
             unless (mVarType ifResult == Just DInt)
                 $ throwError $ SError "TBD"
             tell [JmpZ (fromJust ifResult) elseL]
@@ -164,8 +164,16 @@ checkStatements ss = pushVars M.empty >> mapM_ checkStatement ss >> popVars
         Return Nothing ->
             return ()
         While e s -> do
-            void $ checkExpression e
+            whileSL <- mkLabel "WhileStart"
+            whileEL <- mkLabel "WhileEnd"
+            tell [Label whileSL]
+            whileResult <- checkExpression e
+            unless (mVarType whileResult == Just DInt)
+                $ throwError $ SError "TBD"
+            tell [JmpZ (fromJust whileResult) whileEL]
             checkStatements s
+            tell [Goto whileSL]
+            tell [Label whileEL]
         FuncCall i es -> void $ checkFunctionCall i es
 
 checkFunctionDecl :: Identifier -> SemanticAnalyzer ()
