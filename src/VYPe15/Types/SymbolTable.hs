@@ -19,7 +19,7 @@ import Text.Show (Show)
 import VYPe15.Types.AST
     (DataType(DChar, DInt, DString), Identifier, Param(AnonymousParam))
 
-newtype Id (a :: IdType) = Id Word64
+newtype Id (a :: IdType) = Id { idWord :: Word64 }
   deriving (Show, Ord, Eq, Enum, Bounded)
 
 data IdType

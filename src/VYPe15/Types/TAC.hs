@@ -1,5 +1,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE OverloadedStrings #-}
 -- |
 -- Module:       $HEADER$
 -- Description:  Type for three-adress code (TAC)
@@ -16,13 +18,15 @@ module VYPe15.Types.TAC
 
 import Data.Char (Char)
 import Data.Eq (Eq)
+import Data.Function (($), (.))
 import Data.Int (Int32)
-import Data.String (IsString)
-import Text.Show (Show)
+import Data.Monoid ((<>))
+import Data.String (IsString(fromString))
+import Text.Show (Show(show))
 
 import Data.Text (Text)
 
-import VYPe15.Types.SymbolTable (Variable)
+import VYPe15.Types.SymbolTable (Id(idWord), Variable(varId))
 
 data Operator
     = Mul Variable Variable
@@ -44,7 +48,7 @@ data Operator
     | Call Label
   deriving (Show)
 
-newtype Label = Label' Text
+newtype Label = Label' { label' :: Text }
   deriving (Show, Eq, IsString)
 
 data Constant
@@ -62,3 +66,43 @@ data TAC
     | Goto Label
     | Return Variable
   deriving (Show)
+
+strTac :: TAC -> Text
+strTac = \case
+    Assign v op -> "  " <> strVar v <> " := " <> strOp op
+    Label l -> label' l <> ":"
+    Begin -> "Begin"
+    End -> "End"
+    JmpZ v l -> "if (" <> strVar v <> " == 0): GoTo: " <> label' l
+    Goto l -> "GoTo: " <> label' l
+    Return v -> "Return: " <> strVar v
+
+  where
+    strVar :: Variable -> Text
+    strVar = (fromString . ("var_" <>)) . show . idWord . varId
+
+    strOp :: Operator -> Text
+    strOp = \case
+        Mul a b -> op2 a b "*"
+        Div a b -> op2 a b "/"
+        Mod a b -> op2 a b "%"
+        Sub a b -> op2 a b "-"
+        Add a b -> op2 a b "+"
+        Set a -> strVar a
+        And a b -> op2 a b "&&"
+        Or a b -> op2 a b "||"
+        Not a -> op1 a "!"
+        Eq a b -> op2 a b "=="
+        Neq a b -> op2 a b "!="
+        LT a b -> op2 a b "<"
+        LE a b -> op2 a b "<="
+        GT a b -> op2 a b ">"
+        GE a b -> op2 a b ">="
+        Const c -> fromString $ show c
+        Call l -> fromString $ show l <> "()"
+      where
+        op1 :: Variable -> Text -> Text
+        op1 a op = op <> strVar a
+
+        op2 :: Variable -> Variable -> Text -> Text
+        op2 a b op = strVar a <> " " <> op <> " " <> strVar b

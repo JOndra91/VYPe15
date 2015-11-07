@@ -57,7 +57,7 @@ import VYPe15.Types.Semantics
 import VYPe15.Types.SymbolTable
     ( Function(Function, functionParams, functionReturn)
     , FunctionState(FuncDeclared, FuncDefined)
-    , Id(Id)
+    , Id(Id, idWord)
     , Variable(Variable, varType)
     , builtInFunctions
     )
@@ -299,7 +299,7 @@ hasType v t = case v of
 -- {{{ Label related functions ------------------------------------------------
 
 mkLabel :: String -> SemanticAnalyzer Label
-mkLabel s = Label' . fromString . ((s <> "_") <>) . show <$> newLabelId
+mkLabel s = Label' . fromString . ((s <> "_") <>) . (show . idWord) <$> newLabelId
 
 mkLabel' :: SemanticAnalyzer Label
 mkLabel' = mkLabel "label"
