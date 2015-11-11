@@ -61,6 +61,7 @@ data Constant
 data TAC
     = Assign Variable Operator
     | Void Operator
+    | PushParam Variable
     | Label Label
     | Begin
     | End
@@ -73,6 +74,7 @@ strTac :: TAC -> Text
 strTac = \case
     Assign v op -> indent $ strVar v <> " := " <> strOp op
     Void op -> indent $  strOp op
+    PushParam v -> indent $ "Push " <> strVar v
     Label l -> label' l <> ":"
     Begin -> "Begin"
     End -> "End"

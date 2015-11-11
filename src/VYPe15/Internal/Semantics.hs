@@ -62,7 +62,10 @@ import VYPe15.Types.SymbolTable
     , builtInFunctions
     )
 import VYPe15.Types.TAC
-    (Label(Label'), Operator, TAC(Begin, End, Goto, JmpZ, Label, Void))
+    ( Label(Label')
+    , Operator
+    , TAC(Begin, End, Goto, JmpZ, Label, PushParam, Void)
+    )
 import qualified VYPe15.Types.TAC as TAC (TAC(Assign, Return))
 import qualified VYPe15.Types.TAC as Const (Constant(Char, Int, String))
 import qualified VYPe15.Types.TAC as Op
@@ -277,6 +280,10 @@ processFunctionCall i es = do
         t <- getFunc
         unless ((mVarType <$> actualTs) == (Just <$> getParamTypes t i))
           $ throwError $ SError paramsDoNotMatchMsg
+        -- It's safe to use 'fromJust' because function cannot have void type
+        -- parameters. Except for functions without parameters but in this
+        -- case the list is empty.
+        tell (PushParam . fromJust <$> actualTs)
         return $ functionReturn $ t M.! i
   where
     paramsDoNotMatchMsg = "Parameters do not match"
