@@ -83,10 +83,10 @@ semanticAnalysis ast = evalSemAnalyzer state $ semanticAnalysis' ast
             }
 
 semanticAnalysis' :: Program -> SemanticAnalyzer ()
-semanticAnalysis' = mapM_ funDeclrOrDef
+semanticAnalysis' = mapM_ processFunDeclrOrDef
 
-funDeclrOrDef :: FunDeclrOrDef -> SemanticAnalyzer ()
-funDeclrOrDef = \case
+processFunDeclrOrDef :: FunDeclrOrDef -> SemanticAnalyzer ()
+processFunDeclrOrDef = \case
     FunDeclr returnType' identifier params ->
         withFunc' (lookup identifier) >>= \case
             Just (Function FuncDeclared _ _) -> throwError $ SError
@@ -106,9 +106,9 @@ funDeclrOrDef = \case
                     -> throwError $ SError
                         $ "Definition and declaration types of function '"
                           <> getId identifier <> "' differs."
-                | otherwise -> handleFunctionDefinition
+                | otherwise -> processFunctionDefinition
                   returnType' identifier params stats
-            Nothing -> handleFunctionDefinition
+            Nothing -> processFunctionDefinition
               returnType' identifier params stats
   where
     paramsEq p1 p2 = case (p1, p2) of
@@ -119,14 +119,14 @@ funDeclrOrDef = \case
 
     paramEq p1 p2 = getParamType p1 == getParamType p2
 
-    handleFunctionDefinition returnType' identifier params stats = do
+    processFunctionDefinition returnType' identifier params stats = do
         modifyFunc $ M.insert identifier
           (Function FuncDefined returnType' params)
         when (isJust params) $ paramsToMap (fromJust params) >>= pushVars
         putReturnType returnType'
         tell [Begin]
         tell [Label $ labelFromId identifier]
-        checkStatements stats
+        processStatements stats
         tell [End]
 
     paramsToMap ps = (M.fromList <$>) . sequence $ fmap paramToVar ps
@@ -135,33 +135,33 @@ funDeclrOrDef = \case
     paramToVar AnonymousParam{} = throwError
         $ SError "Unexpected anonymous parameter."
 
-checkStatements :: [Stat] -> SemanticAnalyzer ()
-checkStatements ss = pushVars M.empty >> mapM_ checkStatement ss >> popVars
+processStatements :: [Stat] -> SemanticAnalyzer ()
+processStatements ss = pushVars M.empty >> mapM_ processStatement ss >> popVars
   where
     putVar :: Identifier -> DataType -> SemanticAnalyzer ()
     putVar id d = do
         v <- mkVar d
         modifyVars $ withHead $ M.insert id v
 
-    checkStatement = \case
+    processStatement = \case
         Assign i e -> do
             dest <- findVar i
-            res <- checkExpression e
+            res <- processExpression e
             unless (isJust res) $ throwError $ SError voidAssign
             void $ dest <= Op.Set (fromJust res)
         VarDef d i ->
             mapM_ (`putVar` d) i
         If e s s' -> do
-            ifResult <- checkExpression e
+            ifResult <- processExpression e
             elseL <- mkLabel "IfElse"
             endL <- mkLabel "IfEnd"
             unless (mVarType ifResult == Just DInt)
                 $ throwError $ SError "TBD"
             tell [JmpZ (fromJust ifResult) elseL]
-            checkStatements s
+            processStatements s
             tell [Goto endL]
             tell [Label elseL]
-            checkStatements s'
+            processStatements s'
             tell [Label endL]
         Return Nothing -> do
             expected <- getReturnType
@@ -169,26 +169,26 @@ checkStatements ss = pushVars M.empty >> mapM_ checkStatement ss >> popVars
             tell [TAC.Return Nothing]
         Return (Just e) -> do
             expected <- getReturnType
-            actual <- checkExpression e
+            actual <- processExpression e
             unless (expected == mVarType actual) $ throwError $ SError "TBD"
             tell [TAC.Return actual]
         While e s -> do
             whileSL <- mkLabel "WhileStart"
             whileEL <- mkLabel "WhileEnd"
             tell [Label whileSL]
-            whileResult <- checkExpression e
+            whileResult <- processExpression e
             unless (mVarType whileResult == Just DInt)
                 $ throwError $ SError "TBD"
             tell [JmpZ (fromJust whileResult) whileEL]
-            checkStatements s
+            processStatements s
             tell [Goto whileSL]
             tell [Label whileEL]
         FuncCall i es -> do
-            void $ checkFunctionCall i es
+            void $ processFunctionCall i es
             tell [Void $ Op.Call $ labelFromId i]
 
-checkFunctionDecl :: Identifier -> SemanticAnalyzer ()
-checkFunctionDecl i = do
+processFunctionDecl :: Identifier -> SemanticAnalyzer ()
+processFunctionDecl i = do
     ft <- getFunc
     unless (i `elem` M.keys ft)
       $ throwError $ SError $ "Function '" <> getId i <> "' is not defined."
@@ -202,8 +202,8 @@ findVar i = getVars >>= search
     search [] = throwError $ SError
         $ "Identifier '" <> getId i <> "' is not defined."
 
-checkExpression :: Exp -> SemanticAnalyzer (Maybe Variable)
-checkExpression = \case
+processExpression :: Exp -> SemanticAnalyzer (Maybe Variable)
+processExpression = \case
     OR e1 e2 -> matchLogical Op.Or e1 e2
     AND e1 e2 -> matchLogical Op.And e1 e2
     Eq e1 e2 -> matchRelation Op.Eq e1 e2
@@ -217,33 +217,33 @@ checkExpression = \case
     Times e1 e2 -> matchNumeric Op.Mul e1 e2
     Div e1 e2 -> matchNumeric Op.Div e1 e2
     Mod e1 e2 -> matchNumeric Op.Mod e1 e2
-    NOT e -> checkExpression e >>= \case
+    NOT e -> processExpression e >>= \case
         Just v@(Variable _ DInt) -> DInt *= Op.Not v
         t -> throwError $ SError $ cannotMatchMsg' t
-    Cast t e -> checkExpression e >>= \case
+    Cast t e -> processExpression e >>= \case
         Just v -> t *= Op.Set v
         v -> throwError $ SError $ invalidCast v t
     ConsNum i -> DInt *= Op.Const (Const.Int i)
     ConsString s -> DString *= Op.Const (Const.String $ fromString s)
     ConsChar c ->  DChar *= Op.Const (Const.Char c)
     FuncCallExp i es ->
-        checkFunctionCall i es >>= \case
+        processFunctionCall i es >>= \case
           Just t -> t *= Op.Call (labelFromId i)
           Nothing -> throwError $ SError voidAssign
 
     IdentifierExp i -> Just <$> findVar (Identifier i)
   where
     matchLogical op e1 e2 = do
-        t1 <- checkExpression e1
-        t2 <- checkExpression e2
+        t1 <- processExpression e1
+        t2 <- processExpression e2
         case (t1, t2) of
             (Just v1@(Variable _ DInt), Just v2@(Variable _ DInt)) ->
                 DInt *= op v1 v2
             _ -> throwError $ SError $ cannotMatchLogMsg (op2 op) t1 t2
 
     matchRelation op e1 e2 = do
-        t1 <- checkExpression e1
-        t2 <- checkExpression e2
+        t1 <- processExpression e1
+        t2 <- processExpression e2
         if isJust t1 && mVarType t1 == mVarType t2
           then DInt *= op (fromJust t1) (fromJust t2)
           else throwError $ SError $ cannotMatchRelMsg (op2 op) t1 t2
@@ -270,10 +270,10 @@ checkExpression = \case
 
     op2 op = op dummyVar dummyVar
 
-checkFunctionCall :: Identifier -> [Exp] -> SemanticAnalyzer (Maybe DataType)
-checkFunctionCall i es = do
-        checkFunctionDecl i
-        actualTs <- mapM checkExpression es
+processFunctionCall :: Identifier -> [Exp] -> SemanticAnalyzer (Maybe DataType)
+processFunctionCall i es = do
+        processFunctionDecl i
+        actualTs <- mapM processExpression es
         t <- getFunc
         unless ((mVarType <$> actualTs) == (Just <$> getParamTypes t i))
           $ throwError $ SError paramsDoNotMatchMsg
