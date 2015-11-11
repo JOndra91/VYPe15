@@ -71,16 +71,19 @@ data TAC
 
 strTac :: TAC -> Text
 strTac = \case
-    Assign v op -> "  " <> strVar v <> " := " <> strOp op
-    Void op -> "  " <> strOp op
+    Assign v op -> indent $ strVar v <> " := " <> strOp op
+    Void op -> indent $  strOp op
     Label l -> label' l <> ":"
     Begin -> "Begin"
     End -> "End"
-    JmpZ v l -> "if (" <> strVar v <> " == 0): GoTo: " <> label' l
-    Goto l -> "GoTo: " <> label' l
-    Return v -> "Return: " <> maybe "()" strVar v
+    JmpZ v l -> indent $ "JmpZ " <> strVar v <> ": " <> label' l
+    Goto l -> indent $ "GoTo: " <> label' l
+    Return v -> indent $ "Return: " <> maybe "()" strVar v
 
   where
+    indent :: Text -> Text
+    indent = ("  " <>)
+
     strVar :: Variable -> Text
     strVar = (fromString . ("var_" <>)) . show . idWord . varId
 
