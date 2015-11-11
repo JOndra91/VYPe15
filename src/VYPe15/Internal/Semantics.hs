@@ -143,8 +143,6 @@ checkStatements ss = pushVars M.empty >> mapM_ checkStatement ss >> popVars
         v <- mkVar d
         modifyVars $ withHead $ M.insert id v
 
-    undefVariable i = "Variable '" <> show i <> "'is not defined."
-
     checkStatement = \case
         Assign i e -> do
             dest <- findVar i
@@ -172,7 +170,7 @@ checkStatements ss = pushVars M.empty >> mapM_ checkStatement ss >> popVars
         Return (Just e) -> do
             expected <- getReturnType
             actual <- checkExpression e
-            unless (expected == (mVarType actual)) $ throwError $ SError "TBD"
+            unless (expected == mVarType actual) $ throwError $ SError "TBD"
             tell [TAC.Return actual]
         While e s -> do
             whileSL <- mkLabel "WhileStart"
@@ -309,7 +307,7 @@ hasType v t = case v of
 -- {{{ Label related functions ------------------------------------------------
 
 mkLabel :: String -> SemanticAnalyzer Label
-mkLabel s = Label' . fromString . ((s <> "_") <>) . (show . idWord) <$> newLabelId
+mkLabel s = Label' . fromString . ((s <> "_") <>) . show . idWord <$> newLabelId
 
 mkLabel' :: SemanticAnalyzer Label
 mkLabel' = mkLabel "label"
