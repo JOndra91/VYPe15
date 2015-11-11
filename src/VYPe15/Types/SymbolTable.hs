@@ -47,7 +47,7 @@ data FunctionState
 data Function = Function
     { isDefined :: FunctionState
     , functionReturn :: Maybe DataType
-    , functionParams :: Maybe [Param]
+    , functionParams :: [Param]
     }
   deriving (Show)
 
@@ -64,55 +64,49 @@ builtInFunctions = M.fromList
         Function
           FuncDefined
           Nothing
-          (Just [AnonymousParam DString])
+          [AnonymousParam DString]
       )
     , ("read_char",
         Function
           FuncDefined
           (Just DChar)
-          Nothing
+          []
       )
     , ("read_int",
         Function
           FuncDefined
           (Just DInt)
-          Nothing
+          []
       )
     , ("read_string",
         Function
           FuncDefined
           (Just DString)
-          Nothing
+          []
       )
     , ("get_at",
         Function
           FuncDefined
           (Just DChar)
-          (Just
-            [ AnonymousParam DString
-            , AnonymousParam DInt
-            ]
-          )
+          [ AnonymousParam DString
+          , AnonymousParam DInt
+          ]
       )
     , ("set_at",
         Function
           FuncDefined
           (Just DString)
-          (Just
-            [ AnonymousParam DString
-            , AnonymousParam DInt
-            , AnonymousParam DChar
-            ]
-          )
+          [ AnonymousParam DString
+          , AnonymousParam DInt
+          , AnonymousParam DChar
+          ]
       )
     , ("strcat",
         Function
           FuncDefined
           (Just DString)
-          (Just
-            [ AnonymousParam DString
-            , AnonymousParam DString
-            ]
-          )
+          [ AnonymousParam DString
+          , AnonymousParam DString
+          ]
       )
     ]

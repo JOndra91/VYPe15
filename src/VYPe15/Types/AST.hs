@@ -16,8 +16,8 @@ type Program
   = [FunDeclrOrDef]
 
 data FunDeclrOrDef
-  = FunDeclr (Maybe DataType) Identifier (Maybe [Param])
-  | FunDef (Maybe DataType) Identifier (Maybe [Param]) [Stat]
+  = FunDeclr (Maybe DataType) Identifier [Param]
+  | FunDef (Maybe DataType) Identifier [Param] [Stat]
   deriving (Show)
 
 data Identifier

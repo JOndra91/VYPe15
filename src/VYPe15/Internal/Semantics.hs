@@ -11,10 +11,10 @@ import Prelude (Bounded(minBound))
 
 import Control.Applicative (pure, (<$>))
 import Control.Monad
-    (mapM, mapM_, return, sequence, unless, void, when, (>>), (>>=))
+    (mapM, mapM_, return, sequence, unless, void, (>>), (>>=))
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Writer (tell)
-import Data.Bool (Bool(False, True), not, otherwise, (&&), (||))
+import Data.Bool (Bool(False), not, otherwise, (&&), (||))
 import Data.Either (Either)
 import Data.Eq ((/=), (==))
 import Data.Foldable (and)
@@ -22,7 +22,7 @@ import Data.Function (($), (.))
 import Data.Functor (fmap)
 import Data.List (elem, length, zipWith)
 import Data.Map as M (empty, fromList, insert, keys, lookup, (!))
-import Data.Maybe (Maybe(Just, Nothing), fromJust, fromMaybe, isJust, maybe)
+import Data.Maybe (Maybe(Just, Nothing), fromJust, isJust, maybe)
 import Data.Monoid ((<>))
 import Data.String (IsString(fromString), String)
 import Text.Show (show)
@@ -114,18 +114,14 @@ processFunDeclrOrDef = \case
             Nothing -> processFunctionDefinition
               returnType' identifier params stats
   where
-    paramsEq p1 p2 = case (p1, p2) of
-        (Nothing, Nothing) -> True
-        (Just p1', Just p2') -> length p1' == length p2'
-                             && and (zipWith paramEq p1' p2')
-        _ -> False
+    paramsEq p1 p2 = length p1 == length p2 && and (zipWith paramEq p1 p2)
 
     paramEq p1 p2 = getParamType p1 == getParamType p2
 
     processFunctionDefinition returnType' identifier params stats = do
         modifyFunc $ M.insert identifier
           (Function FuncDefined returnType' params)
-        when (isJust params) $ paramsToMap (fromJust params) >>= pushVars
+        paramsToMap params >>= pushVars
         putReturnType returnType'
         tell [Begin]
         tell [Label $ labelFromId identifier]
@@ -289,7 +285,7 @@ processFunctionCall i es = do
     paramsDoNotMatchMsg = "Parameters do not match"
     getParamTypes ts = typeFromParam . functionParams . (M.!) ts
       where
-        typeFromParam = fmap getParamType . fromMaybe []
+        typeFromParam = fmap getParamType
 
 -- {{{ Variable related functions ---------------------------------------------
 

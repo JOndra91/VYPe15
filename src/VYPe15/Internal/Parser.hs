@@ -14,6 +14,7 @@ import Data.Functor.Identity (Identity)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.String (String)
 
+import Data.Default (Default(def))
 import Text.Parsec (ParsecT, eof, many, try, (<?>), (<|>))
 import Text.Parsec.Expr
     ( Assoc(AssocLeft)
@@ -133,18 +134,18 @@ dataTypeParser = return DInt <* m_reserved "int"
              <|> return DChar <* m_reserved "char"
              <|> return DString <* m_reserved "string"
 
-typeParamsParser :: Parser (Maybe [Param])
-typeParamsParser = Just <$> m_commaSep1 (AnonymousParam <$> dataTypeParser)
+typeParamsParser :: Parser [Param]
+typeParamsParser = m_commaSep1 (AnonymousParam <$> dataTypeParser)
                <|> voidParser
 
 paramParser :: Parser Param
 paramParser = Param <$> dataTypeParser <*> fmap Identifier m_identifier
 
-paramsParser :: Parser (Maybe [Param])
-paramsParser = (Just <$> m_commaSep1 paramParser) <|> voidParser
+paramsParser :: Parser [Param]
+paramsParser = m_commaSep1 paramParser <|> voidParser
 
-voidParser :: Parser (Maybe a)
-voidParser = return Nothing <* m_reserved "void"
+voidParser :: Default a => Parser a
+voidParser = return def <* m_reserved "void"
 
 programParser :: Parser Program
 programParser = many (try parseFunDeclr <|> parseFunDef)
