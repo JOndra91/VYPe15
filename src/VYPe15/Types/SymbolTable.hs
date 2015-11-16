@@ -6,15 +6,17 @@
 module VYPe15.Types.SymbolTable
   where
 
-import Prelude (Enum, Bounded)
+import Prelude (Bounded, Enum)
 
 import Data.Eq (Eq)
-import Data.Word (Word64)
+import Data.Function ((.))
 import Data.Map.Lazy as M (Map, fromList)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Ord (Ord)
+import Data.String (fromString)
 import Data.Text (Text)
-import Text.Show (Show)
+import Data.Word (Word64)
+import Text.Show (Show(show))
 
 import VYPe15.Types.AST
     (DataType(DChar, DInt, DString), Identifier, Param(AnonymousParam))
@@ -31,8 +33,11 @@ type VarId = Id 'Var
 type DataId = Id 'Data
 type LabelId = Id 'Label
 
+idToText :: Id a -> Text
+idToText = fromString . show . idWord
+
 data Variable = Variable
-    { varId :: VarId
+    { varId :: Text
     , varType :: DataType
     }
   deriving (Show)

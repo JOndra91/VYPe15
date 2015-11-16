@@ -12,7 +12,7 @@ import Data.Function (($), (.))
 import Data.Functor (fmap)
 import Data.Functor.Identity (Identity)
 import Data.Maybe (Maybe(Just, Nothing))
-import Data.String (String)
+import Data.String (String, fromString)
 
 import Data.Default (Default(def))
 import Text.Parsec (ParsecT, eof, many, try, (<?>), (<|>))
@@ -39,14 +39,9 @@ import VYPe15.Internal.Lexer
     )
 import VYPe15.Types.AST
     ( DataType(DChar, DInt, DString)
-    , Exp
-      ( AND, Cast, ConsChar, ConsNum, ConsString, Div, Eq, FuncCallExp, Greater
-      , GreaterEq, IdentifierExp, Less, LessEq, Minus, Mod, NOT, NonEq, OR, Plus
-      , Times
-      )
+    , Exp(AND, Cast, ConsChar, ConsNum, ConsString, Div, Eq, FuncCallExp, Greater, GreaterEq, IdentifierExp, Less, LessEq, Minus, Mod, NOT, NonEq, OR, Plus, Times)
     , FunDeclrOrDef(FunDeclr, FunDef)
-    , Identifier(Identifier)
-    , Param(Param, AnonymousParam)
+    , Param(AnonymousParam, Param)
     , Program
     , Stat(Assign, FuncCall, If, Return, VarDef, While)
     )
@@ -79,13 +74,13 @@ table = [
 
 term :: Parser Exp
 term = funcCall <|> m_parens exprparser
-    <|> IdentifierExp <$> m_identifier
+    <|> IdentifierExp . fromString <$> m_identifier
     <|> ConsChar <$> m_charLit
-    <|> ConsString <$> m_stringLit
+    <|> ConsString . fromString <$> m_stringLit
     <|> ConsNum . fromInteger <$> m_integer
   where
     funcCall = try $ FuncCallExp
-        <$> fmap Identifier m_identifier
+        <$> fmap fromString m_identifier
         <*> m_parens (many exprparser)
 
 statparser :: Parser [Stat]
@@ -100,7 +95,7 @@ statparser = many statement
         <|> varDefStatement
       where
         assignStatement = Assign
-            <$> fmap Identifier m_identifier
+            <$> fmap fromString m_identifier
             <*  m_reservedOp "="
             <*> exprparser
             <*  m_semi
@@ -120,13 +115,13 @@ statparser = many statement
             <*  m_semi
 
         funCallStatement = FuncCall
-            <$> fmap Identifier m_identifier
+            <$> fmap fromString m_identifier
             <*> m_parens (m_commaSep exprparser)
             <*  m_semi
 
         varDefStatement = VarDef
             <$> dataTypeParser
-            <*> m_commaSep (fmap Identifier m_identifier)
+            <*> m_commaSep (fmap fromString m_identifier)
             <*  m_semi
 
 dataTypeParser :: ParsecT String u Identity DataType
@@ -139,7 +134,7 @@ typeParamsParser = m_commaSep1 (AnonymousParam <$> dataTypeParser)
                <|> voidParser
 
 paramParser :: Parser Param
-paramParser = Param <$> dataTypeParser <*> fmap Identifier m_identifier
+paramParser = Param <$> dataTypeParser <*> fmap fromString m_identifier
 
 paramsParser :: Parser [Param]
 paramsParser = m_commaSep1 paramParser <|> voidParser
@@ -153,13 +148,13 @@ programParser = many (try parseFunDeclr <|> parseFunDef)
     returnTypeParser = Just <$> dataTypeParser <|> voidParser
     parseFunDeclr = FunDeclr
         <$> returnTypeParser
-        <*> fmap Identifier m_identifier
+        <*> fmap fromString m_identifier
         <*> m_parens typeParamsParser
         <*  m_semi
 
     parseFunDef = FunDef
         <$> returnTypeParser
-        <*> fmap Identifier m_identifier
+        <*> fmap fromString m_identifier
         <*> m_parens paramsParser
         <*> m_braces statparser
 

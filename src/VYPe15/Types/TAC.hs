@@ -27,7 +27,7 @@ import Text.Show (Show(show))
 
 import Data.Text (Text)
 
-import VYPe15.Types.SymbolTable (Id(idWord), Variable(varId))
+import VYPe15.Types.SymbolTable (Variable(varId))
 
 data Operator
     = Mul Variable Variable
@@ -87,7 +87,7 @@ strTac = \case
     indent = ("  " <>)
 
     strVar :: Variable -> Text
-    strVar = (fromString . ("var_" <>)) . show . idWord . varId
+    strVar = ("$" <>) . varId
 
     strOp :: Operator -> Text
     strOp = \case

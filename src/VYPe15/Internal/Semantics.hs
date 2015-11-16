@@ -10,8 +10,7 @@ module VYPe15.Internal.Semantics
 import Prelude (Bounded(minBound))
 
 import Control.Applicative (pure, (<$>))
-import Control.Monad
-    (mapM, mapM_, return, sequence, unless, void, (>>), (>>=))
+import Control.Monad (mapM, mapM_, return, sequence, unless, void, (>>), (>>=))
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Writer (tell)
 import Data.Bool (Bool(False), not, otherwise, (&&), (||))
@@ -24,8 +23,9 @@ import Data.List (elem, length, zipWith)
 import Data.Map as M (empty, fromList, insert, keys, lookup, (!))
 import Data.Maybe (Maybe(Just, Nothing), fromJust, isJust, maybe)
 import Data.Monoid ((<>))
-import Data.String (IsString(fromString), String)
-import Text.Show (show)
+import Data.Text (Text)
+import qualified Data.Text as T (pack)
+import Text.Show (Show(show))
 
 import VYPe15.Types.AST
     ( DataType(DChar, DInt, DString)
@@ -57,9 +57,10 @@ import VYPe15.Types.Semantics
 import VYPe15.Types.SymbolTable
     ( Function(Function, functionParams, functionReturn)
     , FunctionState(FuncDeclared, FuncDefined)
-    , Id(Id, idWord)
+    , LabelId
     , Variable(Variable, varType)
     , builtInFunctions
+    , idToText
     )
 import VYPe15.Types.TAC
     ( Label(Label')
@@ -139,7 +140,7 @@ processStatements ss = pushVars M.empty >> mapM_ processStatement ss >> popVars
   where
     putVar :: Identifier -> DataType -> SemanticAnalyzer ()
     putVar id d = do
-        v <- mkVar d
+        v <- mkVarNamed d $ getId id
         modifyVars $ withHead $ M.insert id v
 
     processStatement = \case
@@ -152,8 +153,7 @@ processStatements ss = pushVars M.empty >> mapM_ processStatement ss >> popVars
             mapM_ (`putVar` d) i
         If e s s' -> do
             ifResult <- processExpression e
-            elseL <- mkLabel "IfElse"
-            endL <- mkLabel "IfEnd"
+            [elseL, endL] <- mkLabels ["IfElse", "IfEnd"]
             unless (mVarType ifResult == Just DInt)
                 $ throwError $ SError "TBD"
             tell [JmpZ (fromJust ifResult) elseL]
@@ -172,8 +172,7 @@ processStatements ss = pushVars M.empty >> mapM_ processStatement ss >> popVars
             unless (expected == mVarType actual) $ throwError $ SError "TBD"
             tell [TAC.Return actual]
         While e s -> do
-            whileSL <- mkLabel "WhileStart"
-            whileEL <- mkLabel "WhileEnd"
+            [whileSL, whileEL] <- mkLabels ["WhileStart", "WhileEnd"]
             tell [Label whileSL]
             whileResult <- processExpression e
             unless (mVarType whileResult == Just DInt)
@@ -223,7 +222,7 @@ processExpression = \case
         Just v -> t *= Op.Set v
         v -> throwError $ SError $ invalidCast v t
     ConsNum i -> DInt *= Op.Const (Const.Int i)
-    ConsString s -> DString *= Op.Const (Const.String $ fromString s)
+    ConsString s -> DString *= Op.Const (Const.String s)
     ConsChar c ->  DChar *= Op.Const (Const.Char c)
     FuncCallExp i es ->
         processFunctionCall i es >>= \case
@@ -251,23 +250,27 @@ processExpression = \case
 
     cannotMatchRelMsg op t1 t2 =
         "Cannot match '" <> varShow t1 <> "' with '" <> varShow t2
-            <> "' in the '" <> show op <> "' relation expression."
+            <> "' in the '" <> showText op <> "' relation expression."
 
     cannotMatchLogMsg op t1 t2
         | t1 `hasType` DInt = cannotMatchLogMsg op t2 t1
         | otherwise = "Cannot match '" <> varShow t1 <> "' with 'int' in '"
-            <> show op <> "' expression."
+            <> showText op <> "' expression."
 
     cannotMatchMsg' t =
         "Cannot match '" <> varShow t <> "' with 'int' in '!' expression."
 
-    invalidCast :: Maybe Variable -> DataType -> String
     invalidCast from to = "Cannot cast from type '" <> varShow from
-        <> "' to type'" <> show to <> "'."
+        <> "' to type'" <> showText to <> "'."
 
-    dummyVar = Variable (Id 0) DInt
+    dummyVar = Variable "$" DInt
 
     op2 op = op dummyVar dummyVar
+
+    varShow = maybe "void" (showText . varType)
+
+    showText :: Show a => a -> Text
+    showText = T.pack . show
 
 processFunctionCall :: Identifier -> [Exp] -> SemanticAnalyzer (Maybe DataType)
 processFunctionCall i es = do
@@ -289,17 +292,18 @@ processFunctionCall i es = do
 
 -- {{{ Variable related functions ---------------------------------------------
 
+mkVarNamed :: DataType -> Text -> SemanticAnalyzer Variable
+mkVarNamed dt name =
+    (`Variable` dt) . ((name <> "_") <>) . idToText <$> newVarId
+
 mkVar :: DataType -> SemanticAnalyzer Variable
-mkVar dt = (`Variable` dt) <$> newVarId
+mkVar = (`mkVarNamed` "var")
 
 mkVarJust :: DataType -> SemanticAnalyzer (Maybe Variable)
 mkVarJust dt = Just <$> mkVar dt
 
 mVarType :: Maybe Variable -> Maybe DataType
 mVarType = fmap varType
-
-varShow :: Maybe Variable -> String
-varShow = maybe "void" (show . varType)
 
 hasType :: Maybe Variable -> DataType -> Bool
 hasType v t = case v of
@@ -309,11 +313,14 @@ hasType v t = case v of
 -- }}} Variable related functions ---------------------------------------------
 -- {{{ Label related functions ------------------------------------------------
 
-mkLabel :: String -> SemanticAnalyzer Label
-mkLabel s = Label' . fromString . ((s <> "_") <>) . show . idWord <$> newLabelId
+mkLabel :: Text -> SemanticAnalyzer Label
+mkLabel s = mkLabel' s <$> newLabelId
 
-mkLabel' :: SemanticAnalyzer Label
-mkLabel' = mkLabel "label"
+mkLabel' :: Text -> LabelId -> Label
+mkLabel' s = Label' . ((s <> "_") <>) . idToText
+
+mkLabels :: [Text] -> SemanticAnalyzer [Label]
+mkLabels ss = (\id -> (`mkLabel'` id) <$> ss) <$> newLabelId
 
 -- }}} Label related functions ------------------------------------------------
 -- {{{ Three address code related functions -----------------------------------
@@ -341,9 +348,9 @@ withHead f (h:t) = f h : t
 withHead _ [] = []
 
 labelFromId :: Identifier -> Label
-labelFromId = Label' . fromString . getId
+labelFromId = Label' . getId
 
 -- }}} Utility functions ------------------------------------------------------
 
-voidAssign :: String
+voidAssign :: Text
 voidAssign = "Cannot assign void to variable."

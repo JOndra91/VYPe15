@@ -6,10 +6,12 @@ where
 
 import Data.Char (Char)
 import Data.Eq (Eq)
+import Data.Function ((.))
 import Data.Int (Int32)
 import Data.Maybe (Maybe)
 import Data.Ord (Ord)
-import Data.String (IsString(fromString), String)
+import Data.String (IsString(fromString))
+import Data.Text (Text)
 import Text.Show (Show(show))
 
 type Program
@@ -21,11 +23,11 @@ data FunDeclrOrDef
   deriving (Show)
 
 data Identifier
-  = Identifier { getId :: String }
+  = Identifier { getId :: Text }
   deriving (Show, Ord, Eq)
 
 instance IsString Identifier where
-  fromString = Identifier
+  fromString = Identifier . fromString
 
 data Stat
   = Assign Identifier Exp
@@ -53,10 +55,10 @@ data Exp
   | NOT Exp
   | Cast DataType Exp
   | ConsNum Int32
-  | ConsString String
+  | ConsString Text
   | ConsChar Char
   | FuncCallExp Identifier [Exp]
-  | IdentifierExp String
+  | IdentifierExp Text
   deriving (Show)
 
 data DataType
