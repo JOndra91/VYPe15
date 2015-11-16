@@ -155,7 +155,7 @@ processStatements ss = pushVars M.empty >> mapM_ processStatement ss >> popVars
             ifResult <- processExpression e
             [elseL, endL] <- mkLabels ["IfElse", "IfEnd"]
             unless (mVarType ifResult == Just DInt)
-                $ throwError $ SError "TBD"
+                $ throwError $ SError $ invalidExprType ifResult $ Just DInt
             tell [JmpZ (fromJust ifResult) elseL]
             processStatements s
             tell [Goto endL]
@@ -164,19 +164,21 @@ processStatements ss = pushVars M.empty >> mapM_ processStatement ss >> popVars
             tell [Label endL]
         Return Nothing -> do
             expected <- getReturnType
-            unless (expected == Nothing) $ throwError $ SError "TBD"
+            unless (expected == Nothing) $ throwError $ SError
+              $ invalidReturnType Nothing expected
             tell [TAC.Return Nothing]
         Return (Just e) -> do
             expected <- getReturnType
             actual <- processExpression e
-            unless (expected == mVarType actual) $ throwError $ SError "TBD"
+            unless (expected == mVarType actual) $ throwError $ SError
+              $ invalidReturnType actual expected
             tell [TAC.Return actual]
         While e s -> do
             [whileSL, whileEL] <- mkLabels ["WhileStart", "WhileEnd"]
             tell [Label whileSL]
             whileResult <- processExpression e
             unless (mVarType whileResult == Just DInt)
-                $ throwError $ SError "TBD"
+                $ throwError $ SError $ invalidExprType whileResult $ Just DInt
             tell [JmpZ (fromJust whileResult) whileEL]
             processStatements s
             tell [Goto whileSL]
@@ -184,6 +186,14 @@ processStatements ss = pushVars M.empty >> mapM_ processStatement ss >> popVars
         FuncCall i es -> do
             void $ processFunctionCall i es
             tell [Void $ Op.Call $ labelFromId i]
+
+    invalidReturnType actual expected =
+        "Invalid return type: actual '" <> varShow actual
+        <> "' expected '" <> typeShow expected <> "'."
+
+    invalidExprType actual expected =
+        "Invalid type in expression: actual '" <> varShow actual
+        <> "' expected '" <> typeShow expected <> "'."
 
 processFunctionDecl :: Identifier -> SemanticAnalyzer ()
 processFunctionDecl i = do
@@ -267,11 +277,6 @@ processExpression = \case
 
     op2 op = op dummyVar dummyVar
 
-    varShow = maybe "void" (showText . varType)
-
-    showText :: Show a => a -> Text
-    showText = T.pack . show
-
 processFunctionCall :: Identifier -> [Exp] -> SemanticAnalyzer (Maybe DataType)
 processFunctionCall i es = do
         processFunctionDecl i
@@ -354,3 +359,12 @@ labelFromId = Label' . getId
 
 voidAssign :: Text
 voidAssign = "Cannot assign void to variable."
+
+typeShow :: Maybe DataType -> Text
+typeShow = maybe "void" showText
+
+varShow :: Maybe Variable -> Text
+varShow = maybe "void" (showText . varType)
+
+showText :: Show a => a -> Text
+showText = T.pack . show
