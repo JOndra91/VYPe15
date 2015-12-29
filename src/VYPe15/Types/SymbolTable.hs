@@ -69,7 +69,7 @@ builtInFunctions = M.fromList
         Function
           FuncDefined
           Nothing
-          [AnonymousParam DString]
+          []
       )
     , ("read_char",
         Function

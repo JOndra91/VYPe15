@@ -1,3 +1,10 @@
+int random(void);
+void doSomething(void);
+
+void multiparamFunction(int a, char b, string c) {
+  print(a, b, c);
+}
+
 int main(void) {
     int a, vysl;
     if (a>0) {
@@ -10,6 +17,18 @@ int main(void) {
         }
     }
     print((string)vysl);
+
+    int r;
+    r = random();
+    doSomething();
+    print((string)r);
+
+    multiparamFunction(42, 'X', "Universe");
+}
+
+int random(void)
+{
+  return 4;
 }
 
 void doSomething(void) {

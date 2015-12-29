@@ -20,7 +20,7 @@ import Data.Eq ((/=), (==))
 import Data.Foldable (and)
 import Data.Function (($), (.))
 import Data.Functor (fmap)
-import Data.List (elem, length, zipWith)
+import Data.List (elem, length, reverse, zipWith)
 import Data.Map as M (empty, fromList, insert, keys, lookup, (!))
 import Data.Maybe (Maybe(Just, Nothing), fromJust, isJust, maybe)
 import Data.Monoid ((<>))
@@ -66,12 +66,12 @@ import VYPe15.Types.SymbolTable
 import VYPe15.Types.TAC
     ( Label(Label')
     , Operator
-    , TAC(Begin, End, Goto, JmpZ, Label, PushParam, Void)
+    , TAC(Begin, Call, Goto, JmpZ, Label, Print, PushParam)
     )
 import qualified VYPe15.Types.TAC as TAC (TAC(Assign, Return))
 import qualified VYPe15.Types.TAC as Const (Constant(Char, Int, String))
 import qualified VYPe15.Types.TAC as Op
-    ( Operator(Add, And, Call, Const, Div, Eq, GE, GT, LE, LT, Mod, Mul, Neq, Not, Or, Set, Sub)
+    ( Operator(Add, And, Const, Div, Eq, GE, GT, LE, LT, Mod, Mul, Neq, Not, Or, Set, Sub)
     )
 
 semanticAnalysis :: Program -> Either SError [TAC]
@@ -128,7 +128,6 @@ processFunDeclrOrDef = \case
         tell [Begin]
         tell [Label $ labelFromId identifier]
         processStatements stats
-        tell [End]
 
     paramsToMap ps = (M.fromList <$>) . sequence $ fmap paramToVar ps
 
@@ -191,9 +190,8 @@ processStatements ss = pushVars M.empty >> mapM_ processStatement ss >> popVars
             processStatements s
             tell [Goto whileSL]
             tell [Label whileEL]
-        FuncCall i es -> do
+        FuncCall i es ->
             void $ processFunctionCall i es
-            tell [Void $ Op.Call $ labelFromId i]
 
     invalidReturnType actual expected =
         "Invalid return type: actual '" <> varShow actual
@@ -244,8 +242,8 @@ processExpression = \case
     ConsChar c ->  DChar *= Op.Const (Const.Char c)
     FuncCallExp i es ->
         processFunctionCall i es >>= \case
-          Just t -> t *= Op.Call (labelFromId i)
           Nothing -> throwError $ SError voidAssign
+          v -> return v
 
     IdentifierExp i -> Just <$> findVar (Identifier i)
   where
@@ -285,23 +283,44 @@ processExpression = \case
 
     op2 op = op dummyVar dummyVar
 
-processFunctionCall :: Identifier -> [Exp] -> SemanticAnalyzer (Maybe DataType)
+processFunctionCall :: Identifier -> [Exp] -> SemanticAnalyzer (Maybe Variable)
 processFunctionCall i es = do
         processFunctionDecl i
-        actualTs <- mapM processExpression es
-        t <- getFunc
-        unless ((mVarType <$> actualTs) == (Just <$> getParamTypes t i))
+        params <- mapM processExpression es
+        fn <- (M.! i) <$> getFunc
+        let fnProcessor = case i of
+              "print" -> processPrintFunction
+              _ -> processGeneralFunction
+        fnProcessor params fn
+  where
+    paramsDoNotMatchMsg = "Parameters do not match"
+    unexpectedVoidParamMsg = "Unexpected void parameter"
+
+    getParamTypes = typeFromParam . functionParams
+      where
+        typeFromParam = fmap getParamType
+
+    mkCall v = tell [Call v $ labelFromId i] >> return v
+
+    processPrintFunction ps _ = do
+      ps' <- mapM unJust ps
+      tell (Print <$> ps')
+      return Nothing
+        where
+          unJust = \case
+              Just v  -> return v
+              Nothing -> throwError $ SError unexpectedVoidParamMsg
+
+    processGeneralFunction ps fn = do
+        unless ((mVarType <$> ps) == (Just <$> getParamTypes fn))
           $ throwError $ SError paramsDoNotMatchMsg
         -- It's safe to use 'fromJust' because function cannot have void type
         -- parameters. Except for functions without parameters but in this
         -- case the list is empty.
-        tell (PushParam . fromJust <$> actualTs)
-        return $ functionReturn $ t M.! i
-  where
-    paramsDoNotMatchMsg = "Parameters do not match"
-    getParamTypes ts = typeFromParam . functionParams . (M.!) ts
-      where
-        typeFromParam = fmap getParamType
+        tell (PushParam . fromJust <$> reverse ps)
+        case functionReturn fn of
+            Just t ->  mkVarJust t >>= mkCall
+            Nothing -> mkCall Nothing
 
 -- {{{ Variable related functions ---------------------------------------------
 

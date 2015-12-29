@@ -46,7 +46,6 @@ data Operator
     | GT Variable Variable
     | GE Variable Variable
     | Const Constant
-    | Call Label
   deriving (Show)
 
 newtype Label = Label' { label' :: Text }
@@ -60,27 +59,27 @@ data Constant
 
 data TAC
     = Assign Variable Operator
-    | Void Operator
+    | Call (Maybe Variable) Label
     | PushParam Variable
     | Label Label
     | Begin
-    | End
     | JmpZ Variable Label
     | Goto Label
     | Return (Maybe Variable)
+    | Print (Variable)
   deriving (Show)
 
 strTac :: TAC -> Text
 strTac = \case
     Assign v op -> indent $ strVar v <> " := " <> strOp op
-    Void op -> indent $  strOp op
+    Call v l -> indent $ maybe "" ((<> " := ") . strVar) v <> label' l <> "()"
     PushParam v -> indent $ "Push " <> strVar v
     Label l -> label' l <> ":"
     Begin -> "Begin"
-    End -> "End"
     JmpZ v l -> indent $ "JmpZ " <> strVar v <> ": " <> label' l
     Goto l -> indent $ "GoTo: " <> label' l
     Return v -> indent $ "Return: " <> maybe "()" strVar v
+    Print v -> indent $ "Print " <> strVar v
 
   where
     indent :: Text -> Text
@@ -107,7 +106,6 @@ strTac = \case
         GT a b -> op2 a b ">"
         GE a b -> op2 a b ">="
         Const c -> fromString $ show c
-        Call l -> label' l <> "()"
       where
         op1 :: Variable -> Text -> Text
         op1 a op = op <> strVar a
