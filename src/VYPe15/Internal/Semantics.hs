@@ -17,7 +17,7 @@ import Control.Monad.Writer (tell)
 import Data.Bool (Bool(False), not, otherwise, (&&), (||))
 import Data.Either (Either)
 import Data.Eq ((/=), (==))
-import Data.Foldable (and)
+import Data.Foldable (and, sum)
 import Data.Function (($), (.))
 import Data.Functor (fmap)
 import Data.List (elem, length, reverse, zipWith)
@@ -25,9 +25,8 @@ import Data.Map as M (empty, fromList, insert, keys, lookup, (!))
 import Data.Maybe (Maybe(Just, Nothing), fromJust, isJust, maybe)
 import Data.Monoid ((<>))
 import Data.Text (Text)
-import qualified Data.Text as T (pack)
-import Text.Show (Show(show))
 
+import VYPe15.Internal.Util (showText, withHead)
 import VYPe15.Types.AST
     ( DataType(DChar, DInt, DString)
     , Exp(AND, Cast, ConsChar, ConsNum, ConsString, Div, Eq, FuncCallExp, Greater, GreaterEq, IdentifierExp, Less, LessEq, Minus, Mod, NOT, NonEq, OR, Plus, Times)
@@ -37,6 +36,7 @@ import VYPe15.Types.AST
     , Program
     , Stat(Assign, FuncCall, If, Return, VarDef, While)
     , getParamType
+    , getTypeSize
     )
 import VYPe15.Types.Semantics
     ( AnalyzerState(AnalyzerState, dataId, functionTable, labelId, programData, returnType, variableId, variableTables)
@@ -66,7 +66,7 @@ import VYPe15.Types.SymbolTable
 import VYPe15.Types.TAC
     ( Label(Label')
     , Operator
-    , TAC(Begin, Call, Goto, JmpZ, Label, Print, PushParam)
+    , TAC(Begin, Call, Goto, JmpZ, Label, PopParams, Print, PushParam)
     )
 import qualified VYPe15.Types.TAC as TAC (TAC(Assign, Return))
 import qualified VYPe15.Types.TAC as Const (Constant(Char, Int, String))
@@ -318,9 +318,11 @@ processFunctionCall i es = do
         -- parameters. Except for functions without parameters but in this
         -- case the list is empty.
         tell (PushParam . fromJust <$> reverse ps)
-        case functionReturn fn of
+        result <- case functionReturn fn of
             Just t ->  mkVarJust t >>= mkCall
             Nothing -> mkCall Nothing
+        tell [PopParams (sum ((getTypeSize . varType . fromJust) <$> ps))]
+        return result
 
 -- {{{ Variable related functions ---------------------------------------------
 
@@ -375,14 +377,8 @@ dt *= op = mkVar dt >>= (<= op)
 -- }}} Three address code related functions -----------------------------------
 -- {{{ Utility functions ------------------------------------------------------
 
-withHead :: (a -> a) -> [a] -> [a]
-withHead f (h:t) = f h : t
-withHead _ [] = []
-
 labelFromId :: Identifier -> Label
 labelFromId = Label' . getId
-
--- }}} Utility functions ------------------------------------------------------
 
 voidAssign :: Text
 voidAssign = "Cannot assign void to variable."
@@ -393,5 +389,4 @@ typeShow = maybe "void" showText
 varShow :: Maybe Variable -> Text
 varShow = maybe "void" (showText . varType)
 
-showText :: Show a => a -> Text
-showText = T.pack . show
+-- }}} Utility functions ------------------------------------------------------

@@ -81,3 +81,9 @@ getParamType :: Param -> DataType
 getParamType = \case
     (Param t _) -> t
     (AnonymousParam t) -> t
+
+getTypeSize :: DataType -> Int32
+getTypeSize = \case
+  DInt -> 4
+  DChar -> 1
+  DString -> 4

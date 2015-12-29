@@ -18,6 +18,7 @@ executable VYPe15
   other-modules:       VYPe15.Internal.Lexer
                        VYPe15.Internal.Parser
                        VYPe15.Internal.Semantics
+                       VYPe15.Internal.Util
                        VYPe15.Types.AST
                        VYPe15.Types.Semantics
                        VYPe15.Types.SymbolTable

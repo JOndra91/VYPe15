@@ -27,6 +27,7 @@ import Text.Show (Show(show))
 
 import Data.Text (Text)
 
+import VYPe15.Internal.Util (showText)
 import VYPe15.Types.SymbolTable (Variable(varId))
 
 data Operator
@@ -61,6 +62,8 @@ data TAC
     = Assign Variable Operator
     | Call (Maybe Variable) Label
     | PushParam Variable
+    | PopParams Int32
+    -- ^ Parameter is number of bytes
     | Label Label
     | Begin
     | JmpZ Variable Label
@@ -74,6 +77,7 @@ strTac = \case
     Assign v op -> indent $ strVar v <> " := " <> strOp op
     Call v l -> indent $ maybe "" ((<> " := ") . strVar) v <> label' l <> "()"
     PushParam v -> indent $ "Push " <> strVar v
+    PopParams n -> indent $ "Pop " <> showText n
     Label l -> label' l <> ":"
     Begin -> "Begin"
     JmpZ v l -> indent $ "JmpZ " <> strVar v <> ": " <> label' l
