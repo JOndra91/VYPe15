@@ -121,13 +121,13 @@ processFunDeclrOrDef = \case
     paramEq p1 p2 = getParamType p1 == getParamType p2
 
     processFunctionDefinition returnType' identifier params stats = do
-        modifyFunc $ M.insert identifier
-          (Function FuncDefined returnType' params)
+        modifyFunc $ M.insert identifier fn
         paramsToMap params >>= pushVars
         putReturnType returnType'
-        tell [Begin]
-        tell [Label $ labelFromId identifier]
+        tell [Begin (labelFromId identifier) fn]
         processStatements stats
+      where
+        fn = Function FuncDefined returnType' params
 
     paramsToMap ps = (M.fromList <$>) . sequence $ fmap paramToVar ps
 

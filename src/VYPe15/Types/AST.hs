@@ -12,6 +12,7 @@ import Data.Maybe (Maybe)
 import Data.Ord (Ord)
 import Data.String (IsString(fromString))
 import Data.Text (Text)
+import Data.Word (Word32)
 import Text.Show (Show(show))
 
 type Program
@@ -82,8 +83,8 @@ getParamType = \case
     (Param t _) -> t
     (AnonymousParam t) -> t
 
-getTypeSize :: DataType -> Int32
+getTypeSize :: DataType -> Word32
 getTypeSize = \case
-  DInt -> 4
-  DChar -> 1
-  DString -> 4
+    DInt -> 4
+    DChar -> 1
+    DString -> 4

@@ -20,6 +20,7 @@ import Data.Char (Char)
 import Data.Eq (Eq)
 import Data.Function (($), (.))
 import Data.Int (Int32)
+import Data.Word (Word32)
 import Data.Maybe (Maybe, maybe)
 import Data.Monoid ((<>))
 import Data.String (IsString(fromString))
@@ -28,7 +29,7 @@ import Text.Show (Show(show))
 import Data.Text (Text)
 
 import VYPe15.Internal.Util (showText)
-import VYPe15.Types.SymbolTable (Variable(varId))
+import VYPe15.Types.SymbolTable (Variable(varId), Function)
 
 data Operator
     = Mul Variable Variable
@@ -62,10 +63,10 @@ data TAC
     = Assign Variable Operator
     | Call (Maybe Variable) Label
     | PushParam Variable
-    | PopParams Int32
+    | PopParams Word32
     -- ^ Parameter is number of bytes
     | Label Label
-    | Begin
+    | Begin Label Function
     | JmpZ Variable Label
     | Goto Label
     | Return (Maybe Variable)
@@ -79,7 +80,7 @@ strTac = \case
     PushParam v -> indent $ "Push " <> strVar v
     PopParams n -> indent $ "Pop " <> showText n
     Label l -> label' l <> ":"
-    Begin -> "Begin"
+    Begin l _ -> "Begin " <> label' l <> ":"
     JmpZ v l -> indent $ "JmpZ " <> strVar v <> ": " <> label' l
     Goto l -> indent $ "GoTo: " <> label' l
     Return v -> indent $ "Return: " <> maybe "()" strVar v
