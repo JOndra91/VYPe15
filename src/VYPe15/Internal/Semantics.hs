@@ -10,7 +10,8 @@ module VYPe15.Internal.Semantics
 import Prelude (Bounded(minBound))
 
 import Control.Applicative (pure, (<$>))
-import Control.Monad (mapM, mapM_, return, sequence, unless, void, (>>), (>>=))
+import Control.Monad
+    (mapM, mapM_, return, sequence, unless, void, (>=>), (>>), (>>=))
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Writer (tell)
 import Data.Bool (Bool(False), not, otherwise, (&&), (||))
@@ -138,10 +139,17 @@ processFunDeclrOrDef = \case
 processStatements :: [Stat] -> SemanticAnalyzer ()
 processStatements ss = pushVars M.empty >> mapM_ processStatement ss >> popVars
   where
-    putVar :: Identifier -> DataType -> SemanticAnalyzer ()
+    putVar :: Identifier -> DataType -> SemanticAnalyzer Variable
     putVar id d = do
         v <- mkVarNamed d $ getId id
         modifyVars $ withHead $ M.insert id v
+        return v
+
+    initVar :: Variable -> SemanticAnalyzer ()
+    initVar v@(Variable _ t) = void $ case t of
+      DInt -> v <= Op.Const (Const.Int 0)
+      DChar -> v <= Op.Const (Const.Char '\0')
+      DString -> v <= Op.Const (Const.String "")
 
     processStatement = \case
         Assign i e -> do
@@ -150,7 +158,7 @@ processStatements ss = pushVars M.empty >> mapM_ processStatement ss >> popVars
             unless (isJust res) $ throwError $ SError voidAssign
             void $ dest <= Op.Set (fromJust res)
         VarDef d i ->
-            mapM_ (`putVar` d) i
+            mapM_ ((`putVar` d) >=> initVar) i
         If e s s' -> do
             ifResult <- processExpression e
             [elseL, endL] <- mkLabels ["IfElse", "IfEnd"]
