@@ -37,7 +37,7 @@ type StringTable = [(Word32,Text)]
 data AssemblyState = AssemblyState
     { variableTable :: VariableTable
     , stringTable :: StringTable
-    , returnLabel :: Label
+    , functionLabel :: Label
     , stringCounter :: Word32
     , paramCounter :: Int32
     , variableCounter :: Int32
@@ -137,6 +137,10 @@ data ASM
     -- Declarations and directives
     | Label Label
     | Asciiz Word32 Text
+    -- Special instructions
+    | PrintInt Register
+    | PrintChar Register
+    | PrintString Register
   deriving (Show) -- Just for testing
 
 newtype Assembly a
@@ -222,5 +226,8 @@ mkLabels ls = state withState
           { labelCounter = succ ctr
           }
 
+getFunctionLabel :: Assembly Label
+getFunctionLabel = functionLabel <$> get
+
 getReturnLabel :: Assembly Label
-getReturnLabel = returnLabel <$> get
+getReturnLabel = (\t -> "__" <> t <> "_return_") <$> getFunctionLabel
