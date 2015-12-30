@@ -22,7 +22,8 @@ import Data.List (groupBy, reverse)
 import qualified Data.Map as M (empty)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Monoid ((<>))
-import Data.Text (Text)
+import Data.Text (Text, unlines)
+import Data.Tuple (snd)
 
 import VYPe15.Internal.Util (showText)
 import VYPe15.Types.Assembly
@@ -60,9 +61,11 @@ import qualified VYPe15.Types.TAC as Op
 
 generateAssembly :: [TAC] -> Text
 generateAssembly tac =
+    let asm = snd . evalAssembly initialState
+          . mapM_ generateAssembly' . reverse $ functions tac
+    in unlines $ showText <$> asm
     -- intercalate "\n\n" (showText <$> functions tac)
     -- showText $ fmap (evalAssembly initialState . generateAssembly') $ functions tac
-    showText . evalAssembly initialState . mapM_ generateAssembly' . reverse $ functions tac
   where
     functions = groupBy (\_ b -> isBegin b)
 
@@ -85,10 +88,10 @@ generateAssembly tac =
         state <- get
         let (state', asm) = evalAssembly state $ mapM_ handleTAC tac'
         put state'
-        postProcess asm
+        postProcessFunction asm
 
-    postProcess :: [ASM] -> Assembly ()
-    postProcess asm = do
+    postProcessFunction :: [ASM] -> Assembly ()
+    postProcessFunction asm = do
         returnL <- getReturnLabel
         functionL <- getFunctionLabel
         stackSize <- variableCounter <$> get

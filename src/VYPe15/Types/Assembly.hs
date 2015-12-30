@@ -19,7 +19,8 @@ import Data.Map (Map)
 import qualified Data.Map as M (insert, lookup)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Monoid ((<>))
-import Data.Text (Text)
+import Data.String (String)
+import Data.Text (Text, unpack)
 import Data.Tuple (swap)
 import Data.Word (Word32)
 import Text.Show (Show(show))
@@ -27,7 +28,7 @@ import Text.Show (Show(show))
 import VYPe15.Internal.Util (showText)
 import VYPe15.Types.AST (getTypeSize)
 import VYPe15.Types.SymbolTable (Variable(varType))
-import VYPe15.Types.TAC (Label(Label'))
+import VYPe15.Types.TAC (Label(Label', label'))
 
 
 type VariableTable = Map Variable Address
@@ -141,7 +142,55 @@ data ASM
     | PrintInt Register
     | PrintChar Register
     | PrintString Register
-  deriving (Show) -- Just for testing
+
+instance Show ASM where
+    show = \case
+        LI reg val -> indent $ inst2 "li" reg val
+        ADDI reg val -> indent $ inst2 "li" reg val
+        LW reg addr -> indent $ inst2 "lw" reg addr
+        LB reg addr -> indent $ inst2 "lb" reg addr
+        SW reg addr -> indent $ inst2 "sw" reg addr
+        SB reg addr -> indent $ inst2 "sb" reg addr
+        MOV reg0 reg1 -> indent $ inst2 "mov" reg0 reg1
+        ADD reg0 reg1 reg2 -> indent $ inst3 "add" reg0 reg1 reg2
+        SUB reg0 reg1 reg2 -> indent $ inst3 "sub" reg0 reg1 reg2
+        MUL reg0 reg1 -> indent $ inst2 "mul" reg0 reg1
+        DIV reg0 reg1 -> indent $ inst2 "div" reg0 reg1
+        AND reg0 reg1 reg2 -> indent $ inst3 "and" reg0 reg1 reg2
+        OR reg0 reg1 reg2 -> indent $ inst3 "or" reg0 reg1 reg2
+        XOR reg0 reg1 reg2 -> indent $ inst3 "xor" reg0 reg1 reg2
+        SRL reg0 reg1 val -> indent $ inst3 "srl" reg0 reg1 val
+        MFHi reg -> indent $ inst1 "mfhi" reg
+        MFLo reg -> indent $ inst1 "mflo" reg
+        JAL l -> indent $ "jal " <> label l
+        JR reg -> indent $ inst1 "jr" reg
+        B l -> indent $ "b " <> label l
+        BEQ reg0 reg1 l -> indent (inst2 "beq" reg0 reg1) <> label l
+        BLT reg0 reg1 l -> indent (inst2 "blt" reg0 reg1) <> label l
+        BLE reg0 reg1 l -> indent (inst2 "ble" reg0 reg1) <> label l
+        BGT reg0 reg1 l -> indent (inst2 "bgt" reg0 reg1) <> label l
+        BGE reg0 reg1 l -> indent (inst2 "bge" reg0 reg1) <> label l
+        BNE reg0 reg1 l -> indent (inst2 "bne" reg0 reg1) <> label l
+        Label l -> label l <> ":"
+        Asciiz n txt -> "__asciizString_" <> show n <> ":  " <> unpack txt
+        PrintInt reg -> indent $ inst1 "print_int" reg
+        PrintChar reg -> indent $ inst1 "print_char" reg
+        PrintString reg -> indent $ inst1 "print_string" reg
+      where
+        indent :: String -> String
+        indent = ("  " <>)
+
+        label :: Label -> String
+        label l = unpack (label' l)
+
+        inst1 :: (Show a) => String -> a -> String
+        inst1 i op0 = i <> " " <> show op0
+
+        inst2 :: (Show a, Show b) => String -> a -> b -> String
+        inst2 i op0 op1 = i <> " " <> show op0 <> ", " <> show op1
+
+        inst3 :: (Show a, Show b, Show c) => String -> a -> b -> c -> String
+        inst3 i op0 op1 op2 = i <> " " <> show op0 <> ", " <> show op1 <> show op2
 
 newtype Assembly a
     = Assembly
