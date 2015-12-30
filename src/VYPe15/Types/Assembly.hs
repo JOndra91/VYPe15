@@ -1,39 +1,46 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module VYPe15.Types.Assembly
   where
 
+import Prelude (Enum(succ), Num((+), (-)), fromIntegral)
+
 import Control.Applicative (Applicative)
 import Control.Monad (Monad)
-import Control.Monad.State (MonadState, State)
-import Control.Monad.Writer (MonadWriter, WriterT)
-import Data.Functor (Functor)
+import Control.Monad.State (MonadState, State, get, runState, state)
+import Control.Monad.Writer (MonadWriter, WriterT, execWriterT)
+import Data.Function (($), (.))
+import Data.Functor (Functor, (<$>))
 import Data.Int (Int32)
 import Data.Map (Map)
+import qualified Data.Map as M (insert, (!))
 import Data.Monoid ((<>))
 import Data.Text (Text)
+import Data.Tuple (swap)
 import Data.Word (Word32)
 import Text.Show (Show(show))
 
-import VYPe15.Types.SymbolTable (Variable)
+import VYPe15.Internal.Util (showText)
+import VYPe15.Types.AST (getTypeSize)
+import VYPe15.Types.SymbolTable (Variable(varType))
 import VYPe15.Types.TAC (Label)
 
--- | Location of variable in reference to either stack pointer of frame pointer.
-data Location
-  = LocSP Int32
-  | LocFP Int32
 
 type VariableTable = Map Variable Address
 
-type StringTable = Map Word32 Text
+type StringTable = [(Word32,Text)]
 
 data AssemblyState = AssemblyState
     { variableTable :: VariableTable
     , stringTable :: StringTable
     , stringCounter :: Word32
+    , paramCounter :: Int32
+    , variableCounter :: Int32
     }
+  deriving(Show)
 
 data Register
     = Zero -- ^ [$0] Zero (contains zero)
@@ -87,7 +94,7 @@ data Address
 instance Show Address where
     show = \case
         Reg r -> show r
-        RAM o b -> show o <> "(" <> show b <> ")"
+        RAM b o -> show o <> "(" <> show b <> ")"
         Data t -> show t
 
 data ASM
@@ -125,8 +132,8 @@ data ASM
     | BNE Register Register Label
     -- Declarations and directives
     | Label Label
+    | Asciiz Word32 Text
   deriving (Show) -- Just for testing
-
 
 newtype Assembly a
     = Assembly
@@ -138,3 +145,50 @@ newtype Assembly a
     , MonadState AssemblyState
     , MonadWriter [ASM]
     )
+
+evalAssembly
+  :: AssemblyState
+  -> Assembly a
+  -> (AssemblyState, [ASM])
+evalAssembly s = swap . (`runState` s) . execWriterT . runAssembly
+
+addParam :: Variable -> Assembly Address
+addParam var = state withState
+  where
+    withState s = (varAddress, newState)
+      where
+        newCounter = paramCounter s + (fromIntegral . getTypeSize $ varType var)
+
+        varAddress = RAM FP newCounter
+
+        newState = s
+          { paramCounter = newCounter
+          , variableTable = M.insert var varAddress (variableTable s)
+          }
+
+addVariable :: Variable -> Assembly Address
+addVariable var = state withState
+  where
+    withState s = (varAddress, newState)
+      where
+        varAddress = RAM FP (variableCounter s)
+
+        newState = s
+          { variableCounter = variableCounter s - (fromIntegral . getTypeSize $ varType var)
+          , variableTable = M.insert var varAddress (variableTable s)
+          }
+
+getVarAddr :: Variable -> Assembly Address
+getVarAddr var = (M.! var) . variableTable <$> get
+
+addString :: Text -> Assembly Address
+addString t = state withState
+  where
+    withState s = (stringAddress, newState)
+      where
+        stringAddress = Data $ "__asciizString_" <> showText (stringCounter s)
+
+        newState = s
+          { stringCounter = succ $ stringCounter s
+          , stringTable = (stringCounter s, t) : stringTable s
+          }

@@ -8,11 +8,11 @@ module VYPe15.Types.SymbolTable
 
 import Prelude (Bounded, Enum)
 
-import Data.Eq (Eq)
-import Data.Function ((.))
+import Data.Eq (Eq((==)))
+import Data.Function (on, (.))
 import Data.Map.Lazy as M (Map, fromList)
 import Data.Maybe (Maybe(Just, Nothing))
-import Data.Ord (Ord)
+import Data.Ord (Ord(compare))
 import Data.String (fromString)
 import Data.Text (Text)
 import Data.Word (Word64)
@@ -41,6 +41,12 @@ data Variable = Variable
     , varType :: DataType
     }
   deriving (Show)
+
+instance Eq Variable where
+  (==) = (==) `on` varId
+
+instance Ord Variable where
+  compare = compare `on` varId
 
 type VariableTable = M.Map Identifier Variable
 
