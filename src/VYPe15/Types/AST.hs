@@ -23,7 +23,7 @@ data FunDeclrOrDef
   | FunDef (Maybe DataType) Identifier [Param] [Stat]
   deriving (Show)
 
-data Identifier
+newtype Identifier
   = Identifier { getId :: Text }
   deriving (Show, Ord, Eq)
 
