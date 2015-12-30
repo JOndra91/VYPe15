@@ -105,6 +105,7 @@ data ASM
     -- Immediate instructions
     = LI Register Int32 -- ^ Load immediate
     | ADDI Register Int32 -- ^ Add immediate
+    | ADDIU Register Int32 -- ^ Add immediate (unsinged)
     -- Load and store
     | LW Register Address -- ^ Load word
     | LB Register Address -- ^ Load byte
@@ -129,15 +130,20 @@ data ASM
     | JAL Label -- ^ Jump and Link (sub-routine call)
     | JR Register -- ^ Jump register
     | B Label -- ^ Branch (jump alternative)
-    | BEQ Register Register Label
-    | BLT Register Register Label
-    | BLE Register Register Label
-    | BGT Register Register Label
-    | BGE Register Register Label
-    | BNE Register Register Label
+    | BEQZ Register Label
+    | BLTZ Register Label
+    | BLEZ Register Label
+    | BGTZ Register Label
+    | BGEZ Register Label
+    | BNEZ Register Label
     -- Declarations and directives
     | Label Label
-    | Asciiz Word32 Text
+    | Asciz' Word32 Text
+    | Data'
+    | Text'
+    | Org' Word32
+    -- System
+    | Break
     -- Special instructions
     | PrintInt Register
     | PrintChar Register
@@ -146,15 +152,16 @@ data ASM
 instance Show ASM where
     show = \case
         LI reg val -> indent $ inst2 "li" reg val
-        ADDI reg val -> indent $ inst2 "li" reg val
+        ADDI reg val -> indent $ inst2 "addi" reg val
+        ADDIU reg val -> indent $ inst2 "addiu" reg val
         LW reg addr -> indent $ inst2 "lw" reg addr
         LB reg addr -> indent $ inst2 "lb" reg addr
         SW reg addr -> indent $ inst2 "sw" reg addr
         SB reg addr -> indent $ inst2 "sb" reg addr
-        MOV reg0 reg1 -> indent $ inst2 "mov" reg0 reg1
+        MOV reg0 reg1 -> indent $ inst2 "move" reg0 reg1
         ADD reg0 reg1 reg2 -> indent $ inst3 "add" reg0 reg1 reg2
         SUB reg0 reg1 reg2 -> indent $ inst3 "sub" reg0 reg1 reg2
-        MUL reg0 reg1 -> indent $ inst2 "mul" reg0 reg1
+        MUL reg0 reg1 -> indent $ inst2 "mult" reg0 reg1
         DIV reg0 reg1 -> indent $ inst2 "div" reg0 reg1
         AND reg0 reg1 reg2 -> indent $ inst3 "and" reg0 reg1 reg2
         OR reg0 reg1 reg2 -> indent $ inst3 "or" reg0 reg1 reg2
@@ -165,17 +172,21 @@ instance Show ASM where
         JAL l -> indent $ "jal " <> label l
         JR reg -> indent $ inst1 "jr" reg
         B l -> indent $ "b " <> label l
-        BEQ reg0 reg1 l -> indent (inst2 "beq" reg0 reg1) <> label l
-        BLT reg0 reg1 l -> indent (inst2 "blt" reg0 reg1) <> label l
-        BLE reg0 reg1 l -> indent (inst2 "ble" reg0 reg1) <> label l
-        BGT reg0 reg1 l -> indent (inst2 "bgt" reg0 reg1) <> label l
-        BGE reg0 reg1 l -> indent (inst2 "bge" reg0 reg1) <> label l
-        BNE reg0 reg1 l -> indent (inst2 "bne" reg0 reg1) <> label l
+        BEQZ reg0 l -> indent (inst2 "beq" reg0 Zero) <> ", " <> label l
+        BLTZ reg0 l -> indent (inst1 "bltz" reg0) <> ", " <> label l
+        BLEZ reg0 l -> indent (inst1 "blez" reg0) <> ", " <> label l
+        BGTZ reg0 l -> indent (inst1 "bgtz" reg0) <> ", " <> label l
+        BGEZ reg0 l -> indent (inst1 "bgez" reg0) <> ", " <> label l
+        BNEZ reg0 l -> indent (inst2 "bne" reg0 Zero) <> ", " <> label l
         Label l -> label l <> ":"
-        Asciiz n txt -> "__asciizString_" <> show n <> ":  " <> unpack txt
         PrintInt reg -> indent $ inst1 "print_int" reg
         PrintChar reg -> indent $ inst1 "print_char" reg
         PrintString reg -> indent $ inst1 "print_string" reg
+        Asciz' n txt -> "__asciizString_" <> show n <> ":  .asciz  " <> show txt
+        Data' -> ".data"
+        Text' -> ".text"
+        Org' n -> ".org " <> show n
+        Break -> indent "break"
       where
         indent :: String -> String
         indent = ("  " <>)
@@ -190,7 +201,8 @@ instance Show ASM where
         inst2 i op0 op1 = i <> " " <> show op0 <> ", " <> show op1
 
         inst3 :: (Show a, Show b, Show c) => String -> a -> b -> c -> String
-        inst3 i op0 op1 op2 = i <> " " <> show op0 <> ", " <> show op1 <> show op2
+        inst3 i op0 op1 op2 =
+            i <> " " <> show op0 <> ", " <> show op1 <> ", " <> show op2
 
 newtype Assembly a
     = Assembly
@@ -269,7 +281,7 @@ mkLabels ls = state withState
 
         labels = mkLabel' <$> ls
 
-        mkLabel' name = Label' $ "__" <> name <> "_" <> showText ctr
+        mkLabel' name = Label' $ "label__" <> name <> "_" <> showText ctr
 
         newState = s
           { labelCounter = succ ctr

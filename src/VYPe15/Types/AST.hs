@@ -84,7 +84,4 @@ getParamType = \case
     (AnonymousParam t) -> t
 
 getTypeSize :: DataType -> Word32
-getTypeSize = \case
-    DInt -> 4
-    DChar -> 1
-    DString -> 4
+getTypeSize _ = 4 -- Alignment

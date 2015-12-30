@@ -1,6 +1,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module VYPe15.Internal.AssemblyGenerator
     ( generateAssembly
@@ -23,16 +24,17 @@ import qualified Data.Map as M (empty)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Monoid ((<>))
 import Data.Text (Text, unlines)
-import Data.Tuple (snd)
+import Data.Tuple (uncurry)
 
 import VYPe15.Internal.Util (showText)
 import VYPe15.Types.Assembly
-    ( ASM(ADD, ADDI, AND, B, BEQ, BGE, BGT, BLE, BLT, BNE, DIV, JAL, JR, LB, LI, LW, Label, MFHi, MFLo, MOV, MUL, OR, PrintChar, PrintInt, PrintString, SB, SUB, SW, XOR)
+    ( ASM(ADD, ADDIU, AND, Asciz', B, BEQZ, BGEZ, BGTZ, BLEZ, BLTZ, BNEZ, Break, DIV, Data', JAL, JR, LB, LI, LW, Label, MFHi, MFLo, MOV, MUL, OR, Org', PrintChar, PrintInt, PrintString, SB, SUB, SW, Text', XOR)
     , Address(RAM)
     , Assembly
     , AssemblyState(AssemblyState, functionLabel, labelCounter, paramCounter, stringCounter, stringTable, variableCounter, variableTable)
-    , Register(A0, FP, RA, SP, T0, T1, T2, V0, Zero)
+    , Register(A0, FP, RA, SP, T0, T1, T2, T3, V0, Zero)
     , addParam
+    , addString
     , addVariable
     , evalAssembly
     , getFunctionLabel
@@ -61,7 +63,7 @@ import qualified VYPe15.Types.TAC as Op
 
 generateAssembly :: [TAC] -> Text
 generateAssembly tac =
-    let asm = snd . evalAssembly initialState
+    let asm = postProcessAssembly . evalAssembly initialState
           . mapM_ generateAssembly' . reverse $ functions tac
     in unlines $ showText <$> asm
     -- intercalate "\n\n" (showText <$> functions tac)
@@ -90,6 +92,23 @@ generateAssembly tac =
         put state'
         postProcessFunction asm
 
+    postProcessAssembly :: (AssemblyState, [ASM]) -> [ASM]
+    postProcessAssembly (AssemblyState{..}, asm) = asm' <> asm
+      where
+        asm' = dataSection <> codeSection
+
+        dataSection = Data' : (uncurry Asciz' <$> stringTable)
+
+        codeSection =
+          [ Text'
+          , Org' 0
+          , LI SP 0x8000
+          , MOV FP SP
+          , JAL "main"
+          , Break
+          ]
+
+
     postProcessFunction :: [ASM] -> Assembly ()
     postProcessFunction asm = do
         returnL <- getReturnLabel
@@ -101,9 +120,9 @@ generateAssembly tac =
           [ Label functionL
           , SW RA (sp 0)
           , SW FP (sp 4)
-          , ADDI SP (-8)
+          , ADDIU SP (-8)
           , MOV FP SP
-          , ADDI SP $ negate stackSize
+          , ADDIU SP $ negate stackSize
           ]
         tell asm
         -- Outro
@@ -123,7 +142,7 @@ handleTAC t = case t of
     TAC.Assign var op -> handleAssign var op
     TAC.Call mvar l -> handleCall mvar l
     TAC.PushParam var -> handlePushParam var
-    TAC.PopParams n -> tell [ADDI SP $ fromIntegral n]
+    TAC.PopParams n -> tell [ADDIU SP $ fromIntegral n]
     TAC.Label l -> tell [Label l]
     TAC.Begin l fn -> handleBegin l fn
     TAC.JmpZ var l -> handleJmpZ var l
@@ -148,12 +167,12 @@ handleAssign dst = \case
           , XOR T0 T1 T2
           ]
         storeVar T2 dst
-    Op.Eq v1 v2 -> binaryOpLogic BEQ v1 v2 "Eq"
-    Op.Neq v1 v2 -> binaryOpLogic BNE v1 v2 "Neq"
-    Op.LT v1 v2 -> binaryOpLogic BLT v1 v2 "LT"
-    Op.LE v1 v2 -> binaryOpLogic BLE v1 v2 "LE"
-    Op.GT v1 v2 -> binaryOpLogic BGT v1 v2 "GT"
-    Op.GE v1 v2 -> binaryOpLogic BGE v1 v2 "GE"
+    Op.Eq v1 v2 -> binaryOpLogic BEQZ v1 v2 "Eq"
+    Op.Neq v1 v2 -> binaryOpLogic BNEZ v1 v2 "Neq"
+    Op.LT v1 v2 -> binaryOpLogic BLTZ v1 v2 "LT"
+    Op.LE v1 v2 -> binaryOpLogic BLEZ v1 v2 "LE"
+    Op.GT v1 v2 -> binaryOpLogic BGTZ v1 v2 "GT"
+    Op.GE v1 v2 -> binaryOpLogic BGEZ v1 v2 "GE"
     Op.Const c -> loadConstant c
   where
     loadVar :: Register -> Variable -> Assembly ()
@@ -195,7 +214,7 @@ handleAssign dst = \case
         storeVar T2 dst
 
     binaryOpLogic
-      :: (Register -> Register -> Label -> ASM)
+      :: (Register -> Label -> ASM)
       -> Variable
       -> Variable
       -> Text
@@ -206,7 +225,8 @@ handleAssign dst = \case
         l <- mkLabel labelName
         tell
           [ LI T2 1
-          , branch T0 T1 l
+          , SUB T0 T1 T3
+          , branch T3 l
           , LI T2 0
           , Label l
           ]
@@ -216,7 +236,12 @@ handleAssign dst = \case
     loadConstant = \case
         C.Int n -> loadVal dst n
         C.Char n -> loadVal dst $ ord n
-        C.String _s -> storeVar Zero dst -- Memory allocation strategy is needed.
+        C.String s -> loadString s
+
+    loadString :: Text -> Assembly ()
+    loadString s = do
+        _ <- addString s
+        storeVar Zero dst -- Memory allocation strategy is needed.
 
     loadVal :: (Integral a) => Variable -> a -> Assembly ()
     loadVal v n = do
@@ -242,7 +267,7 @@ handlePushParam v = do
     tell
       [ lv v A0 v'
       , sv v A0 (RAM SP 0)
-      , ADDI SP pSize
+      , ADDIU SP pSize
       ]
   where
     pSize = varSize v
@@ -271,7 +296,7 @@ handleJmpZ v l = do
     v' <- getVarAddr v
     tell
       [ lv v T0 v'
-      , BEQ Zero T0 l
+      , BEQZ T0 l
       ]
 
 handlePrint :: Variable -> Assembly ()
