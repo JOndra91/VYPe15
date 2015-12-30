@@ -131,7 +131,7 @@ processFunDeclrOrDef = \case
 
     paramsToMap ps = (M.fromList <$>) . sequence $ fmap paramToVar ps
 
-    paramToVar (Param dt id) = (id,) <$> mkVar dt
+    paramToVar (Param dt id) = (id,) <$> mkVarNamed' dt (getId id)
     paramToVar AnonymousParam{} = throwError
         $ SError "Unexpected anonymous parameter."
 
@@ -329,6 +329,9 @@ processFunctionCall i es = do
 mkVarNamed :: DataType -> Text -> SemanticAnalyzer Variable
 mkVarNamed dt name =
     (`Variable` dt) . ((name <> "_") <>) . idToText <$> newVarId
+
+mkVarNamed' :: DataType -> Text -> SemanticAnalyzer Variable
+mkVarNamed' dt name = return $ Variable name dt
 
 mkVar :: DataType -> SemanticAnalyzer Variable
 mkVar = (`mkVarNamed` "var")
