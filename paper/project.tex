@@ -13,6 +13,7 @@
 \usepackage[utf8]{inputenc}
 \usepackage[IL2]{fontenc}
 \usepackage{graphicx}
+\usepackage{syntax}
 
 %\usepackage{mathtools}
 
@@ -59,47 +60,112 @@ The last component is the optimizer/target code generator duo, which is fairly s
 \subsection{Grammar}
 In our parser we implemented the following grammar.
 
-\begin{verbatim}
-Program : { FuncDeclr | FuncDef }
+\begin{grammar}
+<program> ::= \{ <funcDeclr> | <funcDef> \}
 
-FuncDeclr : (DataType | void) Identifier ( TypeParamList ) ;
+<funcDeclr> ::= (<dataType> | 'void') <identifier> '(' <typeParamList> ')' ';'
 
-FuncDef : (DataType | void) Identifier ( ParamList ) '{' { Statement } '}'
+<funcDef> ::= (<dataType> | 'void') <identifier> '(' <paramList> ')' '\{'\{<statement>\} '\}'
 
-DataType : (int | char | string)
+<dataType> ::= ('int' | 'char' | 'string')
 
-TypeParamList : void
-			  | DataType {, DataType}
+
+<typeParamList> ::= 'void'
+				\alt <dataType> \{, <dataType>\}
 			  
-ParamList : void
-		  | DataType Identifier {, DataType Identifier}
+<paramList> ::= void
+		  \alt <dataType> <identifier> \{, <dataType> <identifier>\}
 		  
-Statement : Identifier = Expression ;
-	      | while '(' Expression ')' '{' {Statement} '}'
-	   	  | if '(' Expression ')' '{' { Statement } '}' else '{' { Statement } '}'
-	   	  | return ( Expression ; | ; )
-	   	  | Identifier '('')' ;
-	   	  | Identifier '(' Expression {, Expression} ')' ;
-	   	  | DataType Identifier {,Identifier} ;
+<statement> ::= <identifier> = <expression> ';'
+	      \alt 'while' '(' Expression ')' '{' {Statement} '}'
+	   	  \alt 'if' '(' <expression> ')' '\{' \{ <statement> \} '\}' 'else' '\{' \{ <statement> \} '\}'
+	   	  \alt 'return' ( <expression> ';' | ';' )
+	   	  \alt <identifier> '('')' ';'
+	   	  \alt <identifier> '(' <expression> {',' <expression>} ')' ';'
+	   	  \alt <dataType> <identifier> {',' <identifier>} ';'
         
-Expression : Expression (|| | && | == | != | < | > | <= | >= | * | /) Expression
-           | Expression ( % | + | - | !) Expression
-           | (DataType)
-           | Identifier
-           | Identifier '('')' ;
-           | Identifier '(' Expression {, Expression} ')' ;
-           | CharLit
-           | StringLit
-           | NumLit
+<expression> ::= <expression> ( '||' | '\&\&' | '==' | '!=' | '<' | '>' | '<=' ) <expression>
+           \alt <expression> ( '%' | '+' | '-' | '!' | '>=' | '*' | '/' ) <expression>
+           \alt '('<dataType>')'
+           \alt <identifier>
+           \alt <identifier> '(' ')' ';'
+           \alt <identifier> '(' Expression {, Expression} ')' ;
+           \alt <charLit>
+           \alt <stringLit>
+           \alt <numLit> 
            
-\end{verbatim}
+\end{grammar}
 
 
 \section{Implementation}
 \label{sec:implementation}
 
+\subsection{Semantic analyzer}
+Our parser was implemented using Haskell's \texttt{Parsec} 
+\footnote{https://hackage.haskell.org/package/parsec} library. It is
+an industrial-grade monadic parser library for LL(*) parser implementation. Parsers 
+implemented using the Parsec library are fast, deliver very good error messages and
+are generic on the input stream type.
+
+The expression parser was generated using parser generator delivered as a part of the
+library. The rest of the parser has been implemented manually. It seems like an 
+unnecessary work, but since Parsec supports applicative-style programming, 
+constructing the parser is very similar to writing a grammar thanks to the well 
+designed combinators such as the \texttt{many}, \texttt{<|>} and others.
+
+We are very satisfied with the way our solution works compare to the \texttt{happy}
+\footnote{https://www.haskell.org/happy/} and \texttt{alex} 
+\footnote{https://www.haskell.org/alex/} solution we used previously. The number one
+reason is that the parser description in the happy language is not part of our 
+compiler, which makes the debugging process much more time consuming and difficult
+because there is no type safety. Although happy would generate a parser, the parser
+might not be correct. This won't happen in Parsec since the parser description is 
+part of our compiler program.
+On the other hand the happy generated parser is exceptionally fast (Haskell compiler 
+itself uses the happy compiler generator), but its error reporting is worse than in
+case of Parsec \footnote{in general, parsing in haskell is usually a trade-of between performance
+and error massage reporting}.
+
+\subsection{Semantic analysis and code generation}
+Semantic analysis works on the abstract syntax tree. It is a recursive algorithm that
+utilizes the power of monads to handle tree traversal and semantic analysis while
+simultaneously generating intermediate code. We constructed a monad stack consisting of
+\texttt{ExceptT} for error handling and \texttt{Writer} for intermediate code instruction
+storage. 
+
+\subsection{Omtimization and code generation}
+Unfortunately target code generation is performed directly from intermediate code because
+we didn't find time to implement it properly. Target code generation is implemented 
+using the \texttt{WriterT} and \texttt{State} monad stack. Writer serves as target code 
+instructions storage and State holds the register table plus some other information and 
+helps with simulating the stack frame in assembly language. 
+
+\section{Compilation}
+To compile this project the Haskell platform\footnote{https://www.haskell.org/platform/}
+is required. It contains all necessary libraries for any serious haskell programming
+and is a standard for haskell developers. It contains the \texttt{GHC} (Glorious Glasgow
+Haskell compiler) widely-used libraries and the \texttt{cabal} build system.
+To compile our project just type \texttt{make}.
+
+We use cabal to build our project so if cabal is missing, the project won't build. 
+All libraries used in our project are part of the Haskell platform.
 
 \section{Conclusion}
+In our project we implemented compiler for the VYPe15 programming language. Compiler
+is written in Haskell, purely functional programming language. In chapter 
+\ref{fig:architecture} we explained that our compiler designed comes from the fact
+that Haskell is lazy evaluated and in chapter \ref{sec:implementation} we described the 
+implementation process and decisions we have taken.
+
+We did not generate an LR parser (although we did so in early stages), instead we
+implemented an LL(*) parser mainly for type safety reasons. The semantic analysis is 
+perform on an AST instead of being done directly alongside parsing. The semantic analyzer
+and intermediate code generator are strongly connected in our project. 
+
+Optimizer for time reasons was not implemented and it is basically an identity
+function in the end. 
+
+
 \newpage
 \bibliographystyle{alpha}
 \bibliography{bibliography}
