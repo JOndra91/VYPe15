@@ -6,17 +6,18 @@
 module VYPe15.Types.Assembly
   where
 
-import Prelude (Enum(succ), Num((+), (-)), fromIntegral)
+import Prelude (Enum(succ), Num((+), (-)), error, fromIntegral)
 
 import Control.Applicative (Applicative)
-import Control.Monad (Monad)
+import Control.Monad (Monad, return, (>>=))
 import Control.Monad.State (MonadState, State, get, runState, state)
 import Control.Monad.Writer (MonadWriter, WriterT, execWriterT)
 import Data.Function (($), (.))
 import Data.Functor (Functor, (<$>))
 import Data.Int (Int32)
 import Data.Map (Map)
-import qualified Data.Map as M (insert, (!))
+import qualified Data.Map as M (insert, lookup)
+import Data.Maybe (Maybe(Just, Nothing))
 import Data.Monoid ((<>))
 import Data.Text (Text)
 import Data.Tuple (swap)
@@ -26,7 +27,7 @@ import Text.Show (Show(show))
 import VYPe15.Internal.Util (showText)
 import VYPe15.Types.AST (getTypeSize)
 import VYPe15.Types.SymbolTable (Variable(varType))
-import VYPe15.Types.TAC (Label)
+import VYPe15.Types.TAC (Label(Label'))
 
 
 type VariableTable = Map Variable Address
@@ -36,9 +37,11 @@ type StringTable = [(Word32,Text)]
 data AssemblyState = AssemblyState
     { variableTable :: VariableTable
     , stringTable :: StringTable
+    , returnLabel :: Label
     , stringCounter :: Word32
     , paramCounter :: Int32
     , variableCounter :: Int32
+    , labelCounter :: Word32
     }
   deriving(Show)
 
@@ -115,6 +118,7 @@ data ASM
     -- Logical bit-wise
     | AND Register Register Register
     | OR Register Register Register
+    | XOR Register Register Register
     -- Bit operation
     | SRL Register Register Word32 -- ^ Shift right logical
     -- Special register manipulation instructions
@@ -178,8 +182,13 @@ addVariable var = state withState
           , variableTable = M.insert var varAddress (variableTable s)
           }
 
+lookupVarAddr :: Variable -> Assembly (Maybe Address)
+lookupVarAddr var = M.lookup var . variableTable <$> get
+
 getVarAddr :: Variable -> Assembly Address
-getVarAddr var = (M.! var) . variableTable <$> get
+getVarAddr v = lookupVarAddr v >>= \case
+    Just addr -> return addr
+    Nothing -> error $ "BUG: Could not find variable address: " <> show v
 
 addString :: Text -> Assembly Address
 addString t = state withState
@@ -192,3 +201,26 @@ addString t = state withState
           { stringCounter = succ $ stringCounter s
           , stringTable = (stringCounter s, t) : stringTable s
           }
+
+mkLabel :: Text -> Assembly Label
+mkLabel name = do
+  [l'] <- mkLabels [name]
+  return l'
+
+mkLabels :: [Text] -> Assembly [Label]
+mkLabels ls = state withState
+  where
+    withState s = (labels, newState)
+      where
+        ctr = labelCounter s
+
+        labels = mkLabel' <$> ls
+
+        mkLabel' name = Label' $ "__" <> name <> "_" <> showText ctr
+
+        newState = s
+          { labelCounter = succ ctr
+          }
+
+getReturnLabel :: Assembly Label
+getReturnLabel = returnLabel <$> get

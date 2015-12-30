@@ -22,7 +22,7 @@ import Data.Function (($), (.))
 import Data.Int (Int32)
 import Data.Word (Word32)
 import Data.Maybe (Maybe, maybe)
-import Data.Monoid ((<>))
+import Data.Monoid (Monoid, (<>))
 import Data.String (IsString(fromString))
 import Text.Show (Show(show))
 
@@ -51,7 +51,7 @@ data Operator
   deriving (Show)
 
 newtype Label = Label' { label' :: Text }
-  deriving (Show, Eq, IsString)
+  deriving (Show, Eq, IsString, Monoid)
 
 data Constant
     = Int Int32
