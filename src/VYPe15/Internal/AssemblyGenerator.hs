@@ -29,14 +29,14 @@ import Data.Tuple (uncurry)
 import VYPe15.Internal.Util (showText)
 import VYPe15.Types.Assembly
     ( ASM(ADD, ADDIU, AND, Asciz', B, BEQZ, BGEZ, BGTZ, BLEZ, BLTZ, BNEZ, Break,
-        DIV, Data', JAL, JR, LB, LI, LW, Label, MFHi, MFLo, MOV, MOVZ, MUL, OR, Org',
-        PrintChar, PrintInt, PrintString, ReadChar, ReadInt, ReadString, SB, SUB,
-        SW, Text'
+        DIV, Data', JAL, JR, LA, LB, LI, LW, Label, MFHi, MFLo, MOV, MOVZ, MUL,
+        OR, Org', PrintChar, PrintInt, PrintString, ReadChar, ReadInt, ReadString,
+        SB, SUB, SW, Text'
       )
     , Address(RAM)
     , Assembly
     , AssemblyState(AssemblyState, functionLabel, labelCounter, paramCounter, stringCounter, stringTable, variableCounter, variableTable)
-    , Register(A0, FP, RA, SP, T0, T1, T2, T3, V0, Zero)
+    , Register(A0, FP, RA, SP, T0, T1, T2, T3, V0)
     , addParam
     , addString
     , addVariable
@@ -251,9 +251,10 @@ handleAssign dst = \case
         C.String s -> loadString s
 
     loadString :: Text -> Assembly ()
-    loadString s = do
-        _ <- addString s
-        storeVar Zero dst -- Memory allocation strategy is needed.
+    loadString s = do -- TODO: Copy string into it's own memory.
+        addr <- addString s
+        tell [LA T0 addr]
+        storeVar T0 dst
 
     loadVal :: (Integral a) => Variable -> a -> Assembly ()
     loadVal v n = do

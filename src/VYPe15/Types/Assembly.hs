@@ -99,7 +99,7 @@ instance Show Address where
     show = \case
         Reg r -> show r
         RAM b o -> show o <> "(" <> show b <> ")"
-        Data t -> show t
+        Data t -> unpack t
 
 data ASM
     -- Immediate instructions
@@ -111,6 +111,7 @@ data ASM
     | LB Register Address -- ^ Load byte
     | SW Register Address -- ^ Store word
     | SB Register Address -- ^ Store byte
+    | LA Register Address -- ^ Load address
     -- Manipulation
     | MOV Register Register
     | MOVZ Register Register Register
@@ -163,6 +164,7 @@ instance Show ASM where
         LB reg addr -> indent $ inst2 "lb" reg addr
         SW reg addr -> indent $ inst2 "sw" reg addr
         SB reg addr -> indent $ inst2 "sb" reg addr
+        LA reg addr -> indent $ inst2 "la" reg addr
         MOV reg0 reg1 -> indent $ inst2 "move" reg0 reg1
         MOVZ dst src test -> indent $ inst3 "movz" dst src test
         ADD reg0 reg1 reg2 -> indent $ inst3 "add" reg0 reg1 reg2
