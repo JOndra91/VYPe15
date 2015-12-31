@@ -28,11 +28,7 @@ import Data.Tuple (uncurry)
 
 import VYPe15.Internal.Util (showText)
 import VYPe15.Types.Assembly
-    ( ASM(ADD, ADDIU, AND, Asciz', B, BEQZ, BGEZ, BGTZ, BLEZ, BLTZ, BNEZ, Break,
-        DIV, Data', JAL, JR, LA, LB, LI, LW, Label, MFHi, MFLo, MOV, MOVZ, MUL,
-        OR, Org', PrintChar, PrintInt, PrintString, ReadChar, ReadInt, ReadString,
-        SB, SUB, SW, Text'
-      )
+    ( ASM(ADD, ADDIU, AND, Asciz', B, BEQZ, BGEZ, BGTZ, BLEZ, BLTZ, BNEZ, Break, DIV, Data', JAL, JR, LA, LB, LI, LW, Label, MFHi, MFLo, MOV, MOVZ, MUL, OR, Org', PrintChar, PrintInt, PrintString, ReadChar, ReadInt, ReadString, SB, SUB, SW, Text')
     , Address(RAM)
     , Assembly
     , AssemblyState(AssemblyState, functionLabel, labelCounter, paramCounter, stringCounter, stringTable, variableCounter, variableTable)
@@ -58,7 +54,7 @@ import VYPe15.Types.SymbolTable
 import VYPe15.Types.TAC (Constant, Label, Operator, TAC)
 import qualified VYPe15.Types.TAC as C (Constant(Char, Int, String))
 import qualified VYPe15.Types.TAC as TAC
-    ( TAC(Assign, Begin, Call, Goto, JmpZ, Label, PopParams, Print, PushParam, Read, Return)
+    ( TAC(Assign, Begin, Call, GetAt, Goto, JmpZ, Label, PopParams, Print, PushParam, Read, Return, SetAt)
     )
 import qualified VYPe15.Types.TAC as Op
     ( Operator(Add, And, Const, Div, Eq, GE, GT, LE, LT, MaskByte, Mod, Mul, Neq, Not, Or, Set, Sub)
@@ -154,6 +150,8 @@ handleTAC t = case t of
     TAC.Return mvar -> handleReturn mvar
     TAC.Print var -> handlePrint var
     TAC.Read var -> handleRead var
+    TAC.GetAt dst src off -> handleGetAt dst src off
+    TAC.SetAt dst src off char -> handleSetAt dst src off char
 
 handleAssign :: Variable -> Operator -> Assembly ()
 handleAssign dst = \case
@@ -165,13 +163,7 @@ handleAssign dst = \case
     Op.Set v -> loadVar T0 v >> storeVar T0 dst -- TODO: Type casting
     Op.And v1 v2 -> binaryOp AND v1 v2
     Op.Or  v1 v2 -> binaryOp OR v1 v2
-    Op.Not v -> do
-        loadVar T0 v
-        tell
-          [ LI T1 1
-          , MOVZ T0 T1 T0
-          ]
-        storeVar T0 dst
+    Op.Not v -> negateLogic v
     Op.Eq v1 v2 -> binaryOpLogic BEQZ v1 v2 "Eq"
     Op.Neq v1 v2 -> binaryOpLogic BNEZ v1 v2 "Neq"
     Op.LT v1 v2 -> binaryOpLogic BLTZ v1 v2 "LT"
@@ -187,17 +179,14 @@ handleAssign dst = \case
           ]
         storeVar T2 dst
   where
-    loadVar :: Register -> Variable -> Assembly ()
-    loadVar r v = do
-        v' <- getVarAddr v
-        tell [lv v r v']
-
-    storeVar :: Register -> Variable -> Assembly ()
-    storeVar r v = do
-        v' <- lookupVarAddr v >>= \case
-            Just addr -> return addr
-            Nothing -> addVariable v
-        tell [sv v r v']
+    negateLogic :: Variable -> Assembly ()
+    negateLogic v = do
+        loadVar T0 v
+        tell
+          [ LI T1 1
+          , MOVZ T0 T1 T0
+          ]
+        storeVar T0 dst
 
     binaryOp
       :: (Register -> Register -> Register -> ASM)
@@ -336,6 +325,30 @@ handleRead v@(Variable _ vType) = do
       , sv v T0 v'
       ]
 
+handleGetAt :: Variable -> Variable -> Variable -> Assembly ()
+handleGetAt dst src off = do
+    loadVar T0 src
+    loadVar T1 off
+    tell
+      [ ADD T2 T0 T1
+      , LB T3 $ RAM T2 0
+      ]
+    storeVar T3 dst
+
+handleSetAt :: Variable -> Variable -> Variable -> Variable -> Assembly ()
+handleSetAt _ _ _ _ = error "set_at is not implemented yet. :("
+
+loadVar :: Register -> Variable -> Assembly ()
+loadVar r v = do
+    v' <- getVarAddr v
+    tell [lv v r v']
+
+storeVar :: Register -> Variable -> Assembly ()
+storeVar r v = do
+    v' <- lookupVarAddr v >>= \case
+        Just addr -> return addr
+        Nothing -> addVariable v
+    tell [sv v r v']
 
 lv :: Variable -> Register -> Address -> ASM
 lv (Variable _ vType) = case vType of

@@ -7,7 +7,7 @@
 module VYPe15.Internal.Semantics
   where
 
-import Prelude (Bounded(minBound))
+import Prelude (Bounded(minBound), error)
 
 import Control.Applicative (pure, (<$>))
 import Control.Monad
@@ -66,7 +66,7 @@ import VYPe15.Types.SymbolTable
 import VYPe15.Types.TAC
     ( Label(Label')
     , Operator
-    , TAC(Begin, Call, Goto, JmpZ, Label, PopParams, Print, PushParam, Read)
+    , TAC(Begin, Call, GetAt, Goto, JmpZ, Label, PopParams, Print, PushParam, Read, SetAt)
     )
 import qualified VYPe15.Types.TAC as TAC (TAC(Assign, Return))
 import qualified VYPe15.Types.TAC as Const (Constant(Char, Int, String))
@@ -332,6 +332,8 @@ processFunctionCall i es = do
               "read_int" -> processReadFunction DInt
               "read_char" -> processReadFunction DChar
               "read_string" -> processReadFunction DString
+              "get_at" -> processGetAtFunction
+              "set_at" -> processSetAtFunction
               _ -> processGeneralFunction
         fnProcessor params fn
   where
@@ -344,14 +346,26 @@ processFunctionCall i es = do
 
     mkCall v = tell [Call v $ labelFromId i] >> return v
 
+    processGetAtFunction [Just str, Just off] _ = do
+        char <- mkVar DChar
+        tell [GetAt char str off]
+        return $ Just char
+    processGetAtFunction _ _ = error "BUG: get_at has invalid arguments."
+
+    processSetAtFunction [Just str, Just off, Just char] _ = do
+        dst <- mkVar DString
+        tell [SetAt dst str off char]
+        return $ Just dst
+    processSetAtFunction _ _ = error "BUG: set_at has invalid arguments."
+
     processPrintFunction ps _ = do
-      ps' <- mapM unJust ps
-      tell (Print <$> ps')
-      return Nothing
-        where
-          unJust = \case
-              Just v  -> return v
-              Nothing -> throwError $ SError unexpectedVoidParamMsg
+        ps' <- mapM unJust ps
+        tell (Print <$> ps')
+        return Nothing
+          where
+            unJust = \case
+                Just v  -> return v
+                Nothing -> throwError $ SError unexpectedVoidParamMsg
 
     processReadFunction vType _ _ = do
         var <- mkVar vType

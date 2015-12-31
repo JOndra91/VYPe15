@@ -20,16 +20,15 @@ import Data.Char (Char)
 import Data.Eq (Eq)
 import Data.Function (($), (.))
 import Data.Int (Int32)
-import Data.Word (Word32)
 import Data.Maybe (Maybe, maybe)
 import Data.Monoid (Monoid, (<>))
 import Data.String (IsString(fromString))
+import Data.Text (Text, unlines)
+import Data.Word (Word32)
 import Text.Show (Show(show))
 
-import Data.Text (Text)
-
 import VYPe15.Internal.Util (showText)
-import VYPe15.Types.SymbolTable (Variable(varId), Function)
+import VYPe15.Types.SymbolTable (Function, Variable(varId))
 
 data Operator
     = Mul Variable Variable
@@ -73,6 +72,8 @@ data TAC
     | Return (Maybe Variable)
     | Print Variable
     | Read Variable
+    | GetAt Variable Variable Variable
+    | SetAt Variable Variable Variable Variable
   deriving (Show)
 
 strTac :: TAC -> Text
@@ -88,6 +89,12 @@ strTac = \case
     Return v -> indent $ "Return: " <> maybe "()" strVar v
     Print v -> indent $ "Print " <> strVar v
     Read v -> indent $ "Read " <> strVar v
+    GetAt dst str off ->
+        indent $ strVar dst <> " := " <> strVar str <> "[" <> strVar off <> "]"
+    SetAt dst str off char -> unlines
+      [ indent $ strVar dst <> " := " <> strVar str
+      , indent $ strVar dst <> "[" <> strVar off <> "]" <> " := " <> strVar char
+      ]
 
   where
     indent :: Text -> Text
