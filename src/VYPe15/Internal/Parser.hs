@@ -81,7 +81,7 @@ term = funcCall <|> m_parens exprparser
   where
     funcCall = try $ FuncCallExp
         <$> fmap fromString m_identifier
-        <*> m_parens (many exprparser)
+        <*> m_parens (m_commaSep exprparser)
 
 statparser :: Parser [Stat]
 statparser = many statement
