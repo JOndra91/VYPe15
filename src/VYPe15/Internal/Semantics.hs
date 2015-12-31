@@ -20,7 +20,7 @@ import Data.Eq ((/=), (==))
 import Data.Foldable (and, sum)
 import Data.Function (($), (.))
 import Data.Functor (fmap)
-import Data.List (elem, length, reverse, zipWith)
+import Data.List (any, elem, length, reverse, zipWith)
 import Data.Map as M (empty, fromList, insert, keys, lookup, (!))
 import Data.Maybe (Maybe(Just, Nothing), fromJust, isJust, maybe)
 import Data.Monoid ((<>))
@@ -262,7 +262,19 @@ processExpression = \case
           then DInt *= op (fromJust t1) (fromJust t2)
           else throwError $ SError $ cannotMatchRelMsg (op2 op) t1 t2
 
-    matchNumeric = matchLogical
+    matchNumeric op e1 e2 = do
+        t1 <- processExpression e1
+        t2 <- processExpression e2
+        case (t1, t2) of
+            (Just v1@(Variable _ DInt), Just v2@(Variable _ DInt)) ->
+                DInt *= op v1 v2
+            (Just v1@(Variable _ DChar), Just v2@(Variable _ DInt)) ->
+                DInt *= op v1 v2
+            (Just v1@(Variable _ DInt), Just v2@(Variable _ DChar)) ->
+                DInt *= op v1 v2
+            (Just v1@(Variable _ DChar), Just v2@(Variable _ DChar)) ->
+                DChar *= op v1 v2
+            _ -> throwError $ SError $ cannotMatchNumMsg (op2 op) t1 t2
 
     cannotMatchRelMsg op t1 t2 =
         "Cannot match '" <> varShow t1 <> "' with '" <> varShow t2
@@ -271,6 +283,14 @@ processExpression = \case
     cannotMatchLogMsg op t1 t2
         | t1 `hasType` DInt = cannotMatchLogMsg op t2 t1
         | otherwise = "Cannot match '" <> varShow t1 <> "' with 'int' in '"
+            <> showText op <> "' expression."
+
+    cannotMatchNumMsg op t1 t2
+        | any (t1 `hasType`) types = msg t2
+        | otherwise = msg t1
+      where
+        types = [DInt, DChar]
+        msg t = "Cannot match '" <> varShow t <> "' with 'int' or 'char' in '"
             <> showText op <> "' expression."
 
     cannotMatchMsg' t =
