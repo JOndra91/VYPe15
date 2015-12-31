@@ -327,6 +327,7 @@ processFunctionCall i es = do
         processFunctionDecl i
         params <- mapM processExpression es
         fn <- (M.! i) <$> getFunc
+        unless (i == "print") $ checkTypes params fn
         let fnProcessor = case i of
               "print" -> processPrintFunction
               "read_int" -> processReadFunction DInt
@@ -373,8 +374,6 @@ processFunctionCall i es = do
         return $ Just var
 
     processGeneralFunction ps fn = do
-        unless ((mVarType <$> ps) == (Just <$> getParamTypes fn))
-          $ throwError $ SError paramsDoNotMatchMsg
         -- It's safe to use 'fromJust' because function cannot have void type
         -- parameters. Except for functions without parameters but in this
         -- case the list is empty.
@@ -384,6 +383,9 @@ processFunctionCall i es = do
             Nothing -> mkCall Nothing
         tell [PopParams (sum ((getTypeSize . varType . fromJust) <$> ps))]
         return result
+
+    checkTypes ps fn = unless ((mVarType <$> ps) == (Just <$> getParamTypes fn))
+      $ throwError $ SError paramsDoNotMatchMsg
 
 -- {{{ Variable related functions ---------------------------------------------
 
