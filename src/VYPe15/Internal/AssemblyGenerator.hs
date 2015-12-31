@@ -28,11 +28,11 @@ import Data.Text (Text, unlines)
 import VYPe15.Internal.Util (showText)
 import VYPe15.Types.Assembly
     ( ASM(ADD, ADDIU, ADDU, AND, ANDI, Asciz', B, BEQZ, BGEZ, BGTZ, BLEZ, BLTZ,
-          BNEZ, Break, DIV, Data', JAL, JR, LA, LB, LI, LW, Label,
+          BNEZ, Break, Byte', DIV, Data', JAL, JR, LA, LB, LI, LW, Label,
           MFHi, MFLo, MOV, MOVZ, MUL, OR, Org',
           PrintChar, PrintInt, PrintString, ReadChar, ReadInt, ReadString,
           SB, SUB, SW, Text')
-    , Address(RAM)
+    , Address(Data, RAM)
     , Assembly
     , AssemblyState(AssemblyState, functionLabel, functionType, labelCounter,
           paramCounter, stringCounter, stringTable, variableCounter, variableTable)
@@ -103,7 +103,7 @@ generateAssembly tac =
       where
         asm' = dataSection <> codeSection
 
-        dataSection = Data' :
+        dataSection = Data' : Byte' "__null_string_" [0] :
             M.foldlWithKey (\b -> ((: b) .) . flip Asciz') [] stringTable
 
         codeSection =
@@ -134,6 +134,13 @@ generateAssembly tac =
           , ADDIU SP SP stackSize -- stackSize is already negative
           ]
         tell asm
+
+        -- Return check
+        getFunctionType >>= \case
+            Just DString -> tell [LA V0 $ Data "__null_string_"]
+            _ -> tell [LI V0 0]
+        tell [B returnL]
+
         -- Outro
         tell
           [ Label returnL
@@ -144,7 +151,7 @@ generateAssembly tac =
           ]
 
         getFunctionType >>= \case
-            Nothing -> tell [LI V0 0]
+
             Just DString -> do
                 tell [MOV V1 S0]
                 copyString' S0 V0

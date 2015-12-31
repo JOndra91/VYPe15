@@ -14,7 +14,8 @@ import Control.Monad.State (MonadState, State, get, runState, state)
 import Control.Monad.Writer (MonadWriter, WriterT, execWriterT)
 import Data.Function (id, ($), (.))
 import Data.Functor (Functor, (<$>))
-import Data.Int (Int32)
+import Data.Int (Int32, Int8)
+import Data.List (intercalate)
 import Data.Map (Map)
 import qualified Data.Map as M (insert, lookup)
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
@@ -147,6 +148,7 @@ data ASM
     -- Declarations and directives
     | Label Label
     | Asciz' Word32 Text
+    | Byte' Label [Int8]
     | Data'
     | Text'
     | Org' Word32
@@ -199,8 +201,9 @@ instance Show ASM where
         PrintString reg -> indent $ inst1 "print_string" reg
         ReadInt reg -> indent $ inst1 "read_int" reg
         ReadChar reg -> indent $ inst1 "read_char" reg
-        ReadString reg -> indent $ inst1 "read_string" reg
+        ReadString reg -> indent $ inst1 "read_string" reg <> ", $0"
         Asciz' n txt -> "__asciizString_" <> show n <> ":  .asciz  " <> show txt
+        Byte' l bs -> label l <> ":  .byte  " <> intercalate ", " (show <$> bs)
         Data' -> ".data"
         Text' -> ".text"
         Org' n -> ".org " <> show n
