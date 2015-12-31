@@ -59,7 +59,7 @@ data Exp
   | ConsString Text
   | ConsChar Char
   | FuncCallExp Identifier [Exp]
-  | IdentifierExp Text
+  | IdentifierExp Identifier
   deriving (Show)
 
 data DataType

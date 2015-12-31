@@ -31,7 +31,7 @@ import VYPe15.Types.AST
     ( DataType(DChar, DInt, DString)
     , Exp(AND, Cast, ConsChar, ConsNum, ConsString, Div, Eq, FuncCallExp, Greater, GreaterEq, IdentifierExp, Less, LessEq, Minus, Mod, NOT, NonEq, OR, Plus, Times)
     , FunDeclrOrDef(FunDeclr, FunDef)
-    , Identifier(Identifier, getId)
+    , Identifier(getId)
     , Param(AnonymousParam, Param)
     , Program
     , Stat(Assign, FuncCall, If, Return, VarDef, While)
@@ -246,7 +246,7 @@ processExpression = \case
           Nothing -> throwError $ SError voidAssign
           v -> return v
 
-    IdentifierExp i -> Just <$> findVar (Identifier i)
+    IdentifierExp i -> Just <$> findVar i
   where
     castValue t e = do
         v' <- processExpression e
