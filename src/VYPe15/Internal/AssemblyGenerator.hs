@@ -145,7 +145,10 @@ generateAssembly tac =
 
         getFunctionType >>= \case
             Nothing -> tell [LI V0 0]
-            Just DString -> copyString' V0 S0 >> tell [MOV V0 S0]
+            Just DString -> do
+                tell [MOV V1 S0]
+                copyString' S0 V0
+                tell [MOV V0 V1]
             _ -> pure ()
 
         tell [ JR RA ]
