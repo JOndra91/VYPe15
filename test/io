@@ -19,12 +19,18 @@ void main(void) {
 
   char c;
   c = read_char();
-  print('C','h','a','r',' ','\'',c,'\'','\n');
-  print('O','r','d',' ',' ',(int)c,'\n');
+  print("Char \'",c,"\'\n");
+  print("Ord ",(int)c,'\n');
   while(c <= 'Z') {
     print(c, '\n');
-    c = c + 1;
+    c = (char)(c + 1);
   }
+
+  string s;
+
+  s = read_string();
+  print("String \"", s, "\"\n");
+
 }
 
 int succ(int i) {

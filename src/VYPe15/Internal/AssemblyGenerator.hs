@@ -341,14 +341,25 @@ handlePrint v@(Variable _ vType) = do
 handleRead :: Variable -> Assembly ()
 handleRead v@(Variable _ vType) = do
     v' <- addVariable v
-    let readFn = case vType of
-          DInt -> ReadInt
-          DChar -> ReadChar
-          DString -> ReadString
-    tell
-      [ readFn T0
-      , sv v T0 v'
-      ]
+    case vType of
+          DInt -> readPrimitive v' ReadInt
+          DChar -> readPrimitive v' ReadChar
+          DString -> readString v'
+
+  where
+    readPrimitive :: Address -> (Register -> ASM) -> Assembly ()
+    readPrimitive addr readFn = tell
+          [ readFn T0
+          , sv v T0 addr
+          ]
+
+    readString :: Address -> Assembly ()
+    readString addr = tell
+        [ ReadString S0 T0
+        , sv v S0 addr
+        , ADDU S0 S0 T0
+        ]
+
 
 copyString :: Variable -> Variable -> Assembly ()
 copyString dst src = do

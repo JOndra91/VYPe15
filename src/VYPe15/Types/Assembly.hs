@@ -160,7 +160,7 @@ data ASM
     | PrintString Register
     | ReadInt Register
     | ReadChar Register
-    | ReadString Register
+    | ReadString Register Register
 
 instance Show ASM where
     show = \case
@@ -201,7 +201,7 @@ instance Show ASM where
         PrintString reg -> indent $ inst1 "print_string" reg
         ReadInt reg -> indent $ inst1 "read_int" reg
         ReadChar reg -> indent $ inst1 "read_char" reg
-        ReadString reg -> indent $ inst1 "read_string" reg <> ", $0"
+        ReadString str len -> indent $ inst2 "read_string" str len
         Asciz' n txt -> "__asciizString_" <> show n <> ":  .asciz  " <> show txt
         Byte' l bs -> label l <> ":  .byte  " <> intercalate ", " (show <$> bs)
         Data' -> ".data"
