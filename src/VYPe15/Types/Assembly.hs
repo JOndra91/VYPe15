@@ -111,8 +111,10 @@ data ASM
     | LB Register Address -- ^ Load byte
     | SW Register Address -- ^ Store word
     | SB Register Address -- ^ Store byte
-    -- Arithmetic
+    -- Manipulation
     | MOV Register Register
+    | MOVZ Register Register Register
+    -- Arithmetic
     | ADD Register Register Register
     | SUB Register Register Register
     | MUL Register Register -- ^ Stores 64-bit result in Hi and Lo registers
@@ -162,6 +164,7 @@ instance Show ASM where
         SW reg addr -> indent $ inst2 "sw" reg addr
         SB reg addr -> indent $ inst2 "sb" reg addr
         MOV reg0 reg1 -> indent $ inst2 "move" reg0 reg1
+        MOVZ dst src test -> indent $ inst3 "movz" dst src test
         ADD reg0 reg1 reg2 -> indent $ inst3 "add" reg0 reg1 reg2
         SUB reg0 reg1 reg2 -> indent $ inst3 "sub" reg0 reg1 reg2
         MUL reg0 reg1 -> indent $ inst2 "mult" reg0 reg1

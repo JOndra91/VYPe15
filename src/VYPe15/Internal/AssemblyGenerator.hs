@@ -29,9 +29,9 @@ import Data.Tuple (uncurry)
 import VYPe15.Internal.Util (showText)
 import VYPe15.Types.Assembly
     ( ASM(ADD, ADDIU, AND, Asciz', B, BEQZ, BGEZ, BGTZ, BLEZ, BLTZ, BNEZ, Break,
-        DIV, Data', JAL, JR, LB, LI, LW, Label, MFHi, MFLo, MOV, MUL, OR, Org',
+        DIV, Data', JAL, JR, LB, LI, LW, Label, MFHi, MFLo, MOV, MOVZ, MUL, OR, Org',
         PrintChar, PrintInt, PrintString, ReadChar, ReadInt, ReadString, SB, SUB,
-        SW, Text', XOR
+        SW, Text'
       )
     , Address(RAM)
     , Assembly
@@ -169,9 +169,9 @@ handleAssign dst = \case
         loadVar T0 v
         tell
           [ LI T1 1
-          , XOR T0 T1 T2
+          , MOVZ T0 T1 T0
           ]
-        storeVar T2 dst
+        storeVar T0 dst
     Op.Eq v1 v2 -> binaryOpLogic BEQZ v1 v2 "Eq"
     Op.Neq v1 v2 -> binaryOpLogic BNEZ v1 v2 "Neq"
     Op.LT v1 v2 -> binaryOpLogic BLTZ v1 v2 "LT"
