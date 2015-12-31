@@ -1,0 +1,23 @@
+void main(void);
+void recurse(int);
+
+void main(void) {
+
+  int i;
+
+  i = 5;
+
+  recurse(10);
+
+  recurse(5);
+}
+
+void recurse(int i) {
+  print(i, '\n');
+  if(i > 0) {
+    recurse(i-1);
+  }
+  else {
+    print('O', 'K', '\n');
+  }
+}

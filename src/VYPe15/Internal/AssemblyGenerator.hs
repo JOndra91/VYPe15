@@ -119,18 +119,18 @@ generateAssembly tac =
         tell
           [ Label functionL
           , SW RA (sp 0)
-          , SW FP (sp 4)
-          , ADDIU SP (-8)
+          , SW FP (sp (-4))
+          , ADDIU SP SP (-8)
           , MOV FP SP
-          , ADDIU SP $ negate stackSize
+          , ADDIU SP SP stackSize -- stackSize is already negative
           ]
         tell asm
         -- Outro
         tell
           [ Label returnL
-          , MOV SP FP
-          , LW FP (sp 4)
-          , LW RA (sp 8)
+          , ADDIU SP FP 8
+          , LW RA (sp 0)
+          , LW FP (sp (-4))
           , JR RA
           ]
 
@@ -142,7 +142,7 @@ handleTAC t = case t of
     TAC.Assign var op -> handleAssign var op
     TAC.Call mvar l -> handleCall mvar l
     TAC.PushParam var -> handlePushParam var
-    TAC.PopParams n -> tell [ADDIU SP $ fromIntegral n]
+    TAC.PopParams n -> tell [ADDIU SP SP $ fromIntegral n]
     TAC.Label l -> tell [Label l]
     TAC.Begin l fn -> handleBegin l fn
     TAC.JmpZ var l -> handleJmpZ var l
@@ -195,7 +195,7 @@ handleAssign dst = \case
     binaryOp op v1 v2 = do
         loadVar T0 v1
         loadVar T1 v2
-        tell [op T0 T1 T2]
+        tell [op T2 T0 T1]
         storeVar T2 dst
 
     binaryOpMFReg
@@ -225,7 +225,7 @@ handleAssign dst = \case
         l <- mkLabel labelName
         tell
           [ LI T2 1
-          , SUB T0 T1 T3
+          , SUB T3 T0 T1
           , branch T3 l
           , LI T2 0
           , Label l
@@ -254,7 +254,7 @@ handleBegin l fn = do
         { variableTable = M.empty
         , functionLabel = l
         , variableCounter = 0
-        , paramCounter = 12 -- There is offset due to stack frame.
+        , paramCounter = 8 -- There is offset due to stack frame.
         })
     mapM_ (addParam . paramToVar)  $ functionParams fn
   where
@@ -267,7 +267,7 @@ handlePushParam v = do
     tell
       [ lv v A0 v'
       , sv v A0 (RAM SP 0)
-      , ADDIU SP pSize
+      , ADDIU SP SP $ negate pSize
       ]
   where
     pSize = varSize v

@@ -104,8 +104,8 @@ instance Show Address where
 data ASM
     -- Immediate instructions
     = LI Register Int32 -- ^ Load immediate
-    | ADDI Register Int32 -- ^ Add immediate
-    | ADDIU Register Int32 -- ^ Add immediate (unsinged)
+    | ADDI Register Register Int32 -- ^ Add immediate
+    | ADDIU Register Register Int32 -- ^ Add immediate (unsinged)
     -- Load and store
     | LW Register Address -- ^ Load word
     | LB Register Address -- ^ Load byte
@@ -152,8 +152,8 @@ data ASM
 instance Show ASM where
     show = \case
         LI reg val -> indent $ inst2 "li" reg val
-        ADDI reg val -> indent $ inst2 "addi" reg val
-        ADDIU reg val -> indent $ inst2 "addiu" reg val
+        ADDI dst src val -> indent $ inst3 "addi" dst src val
+        ADDIU dst src val -> indent $ inst3 "addiu" dst src val
         LW reg addr -> indent $ inst2 "lw" reg addr
         LB reg addr -> indent $ inst2 "lb" reg addr
         SW reg addr -> indent $ inst2 "sw" reg addr

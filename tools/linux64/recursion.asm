@@ -49,9 +49,9 @@ fn:
   LI $8, 10
   print_char $8
 
-  MOVE $sp, $fp
-  LW $fp, 4($sp)
-  LW $ra, 8($sp)
+  ADDIU $sp, $fp, 8
+  LW $ra, 0($sp)
+  LW $fp, -4($sp)
 
   JR $ra
 
@@ -81,10 +81,10 @@ recursive:
 recursive_end:
 
   // Stack deallocation
-  //ADDIU $sp, $sp, 4
+  ADDIU $sp, $sp, 4
 
-  MOVE $sp, $fp
-  LW $fp, 4($sp)
-  LW $ra, 8($sp)
+  ADDIU $sp, $fp, 8
+  LW $ra, 0($sp)
+  LW $fp, -4($sp)
 
   JR $ra

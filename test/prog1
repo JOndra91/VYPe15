@@ -2,7 +2,7 @@ int random(void);
 void doSomething(void);
 
 void multiparamFunction(int a, char b, string c) {
-  print(a, b, c);
+  print(a, ' ',  b, ' ', c, '\n');
 }
 
 int main(void) {
@@ -16,12 +16,12 @@ int main(void) {
             a=a-1;
         }
     }
-    print((string)vysl);
+    print(vysl, '\n');
 
     int r;
     r = random();
     doSomething();
-    print((string)r);
+    print(r, '\n');
 
     multiparamFunction(42, 'X', "Universe");
 }
