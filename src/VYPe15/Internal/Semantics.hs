@@ -66,7 +66,7 @@ import VYPe15.Types.SymbolTable
 import VYPe15.Types.TAC
     ( Label(Label')
     , Operator
-    , TAC(Begin, Call, Goto, JmpZ, Label, PopParams, Print, PushParam)
+    , TAC(Begin, Call, Goto, JmpZ, Label, PopParams, Print, PushParam, Read)
     )
 import qualified VYPe15.Types.TAC as TAC (TAC(Assign, Return))
 import qualified VYPe15.Types.TAC as Const (Constant(Char, Int, String))
@@ -310,6 +310,9 @@ processFunctionCall i es = do
         fn <- (M.! i) <$> getFunc
         let fnProcessor = case i of
               "print" -> processPrintFunction
+              "read_int" -> processReadFunction DInt
+              "read_char" -> processReadFunction DChar
+              "read_string" -> processReadFunction DString
               _ -> processGeneralFunction
         fnProcessor params fn
   where
@@ -330,6 +333,11 @@ processFunctionCall i es = do
           unJust = \case
               Just v  -> return v
               Nothing -> throwError $ SError unexpectedVoidParamMsg
+
+    processReadFunction vType _ _ = do
+        var <- mkVar vType
+        tell [Read var]
+        return $ Just var
 
     processGeneralFunction ps fn = do
         unless ((mVarType <$> ps) == (Just <$> getParamTypes fn))

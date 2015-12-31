@@ -144,10 +144,13 @@ data ASM
     | Org' Word32
     -- System
     | Break
-    -- Special instructions
+    -- IO instructions
     | PrintInt Register
     | PrintChar Register
     | PrintString Register
+    | ReadInt Register
+    | ReadChar Register
+    | ReadString Register
 
 instance Show ASM where
     show = \case
@@ -182,6 +185,9 @@ instance Show ASM where
         PrintInt reg -> indent $ inst1 "print_int" reg
         PrintChar reg -> indent $ inst1 "print_char" reg
         PrintString reg -> indent $ inst1 "print_string" reg
+        ReadInt reg -> indent $ inst1 "read_int" reg
+        ReadChar reg -> indent $ inst1 "read_char" reg
+        ReadString reg -> indent $ inst1 "read_string" reg
         Asciz' n txt -> "__asciizString_" <> show n <> ":  .asciz  " <> show txt
         Data' -> ".data"
         Text' -> ".text"

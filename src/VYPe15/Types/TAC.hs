@@ -70,7 +70,8 @@ data TAC
     | JmpZ Variable Label
     | Goto Label
     | Return (Maybe Variable)
-    | Print (Variable)
+    | Print Variable
+    | Read Variable
   deriving (Show)
 
 strTac :: TAC -> Text
@@ -85,6 +86,7 @@ strTac = \case
     Goto l -> indent $ "GoTo: " <> label' l
     Return v -> indent $ "Return: " <> maybe "()" strVar v
     Print v -> indent $ "Print " <> strVar v
+    Read v -> indent $ "Read " <> strVar v
 
   where
     indent :: Text -> Text

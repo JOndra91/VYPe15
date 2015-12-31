@@ -1,0 +1,32 @@
+void main(void);
+int succ(int);
+
+void main(void) {
+
+  int i, sum, limit;
+  i = 1;
+  sum = 0;
+  limit = read_int();
+  print('L','i','m','i','t',':',' ',limit,'\n');
+
+  while(i <= limit) {
+    sum = sum + i;
+    i = succ(i);
+    print(sum, '\n');
+  }
+
+  print(sum, '\n', '\n');
+
+  char c;
+  c = read_char();
+  print('C','h','a','r',' ','\'',c,'\'','\n');
+  print('O','r','d',' ',' ',(int)c,'\n');
+  while(c <= 'Z') {
+    print(c, '\n');
+    c = c + 1;
+  }
+}
+
+int succ(int i) {
+  return i+1;
+}

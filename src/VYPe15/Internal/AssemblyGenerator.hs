@@ -28,7 +28,11 @@ import Data.Tuple (uncurry)
 
 import VYPe15.Internal.Util (showText)
 import VYPe15.Types.Assembly
-    ( ASM(ADD, ADDIU, AND, Asciz', B, BEQZ, BGEZ, BGTZ, BLEZ, BLTZ, BNEZ, Break, DIV, Data', JAL, JR, LB, LI, LW, Label, MFHi, MFLo, MOV, MUL, OR, Org', PrintChar, PrintInt, PrintString, SB, SUB, SW, Text', XOR)
+    ( ASM(ADD, ADDIU, AND, Asciz', B, BEQZ, BGEZ, BGTZ, BLEZ, BLTZ, BNEZ, Break,
+        DIV, Data', JAL, JR, LB, LI, LW, Label, MFHi, MFLo, MOV, MUL, OR, Org',
+        PrintChar, PrintInt, PrintString, ReadChar, ReadInt, ReadString, SB, SUB,
+        SW, Text', XOR
+      )
     , Address(RAM)
     , Assembly
     , AssemblyState(AssemblyState, functionLabel, labelCounter, paramCounter, stringCounter, stringTable, variableCounter, variableTable)
@@ -54,7 +58,7 @@ import VYPe15.Types.SymbolTable
 import VYPe15.Types.TAC (Constant, Label, Operator, TAC)
 import qualified VYPe15.Types.TAC as C (Constant(Char, Int, String))
 import qualified VYPe15.Types.TAC as TAC
-    ( TAC(Assign, Begin, Call, Goto, JmpZ, Label, PopParams, Print, PushParam, Return)
+    ( TAC(Assign, Begin, Call, Goto, JmpZ, Label, PopParams, Print, PushParam, Read, Return)
     )
 import qualified VYPe15.Types.TAC as Op
     ( Operator(Add, And, Const, Div, Eq, GE, GT, LE, LT, Mod, Mul, Neq, Not, Or, Set, Sub)
@@ -149,6 +153,7 @@ handleTAC t = case t of
     TAC.Goto l -> tell [B l]
     TAC.Return mvar -> handleReturn mvar
     TAC.Print var -> handlePrint var
+    TAC.Read var -> handleRead var
 
 handleAssign :: Variable -> Operator -> Assembly ()
 handleAssign dst = \case
@@ -309,6 +314,18 @@ handlePrint v@(Variable _ vType) = do
     tell
       [ lv v T0 v'
       , prtFn T0
+      ]
+
+handleRead :: Variable -> Assembly ()
+handleRead v@(Variable _ vType) = do
+    v' <- addVariable v
+    let readFn = case vType of
+          DInt -> ReadInt
+          DChar -> ReadChar
+          DString -> ReadString
+    tell
+      [ readFn T0
+      , sv v T0 v'
       ]
 
 
