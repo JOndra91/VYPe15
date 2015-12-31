@@ -27,7 +27,7 @@ import Data.Text (Text, unlines)
 
 import VYPe15.Internal.Util (showText)
 import VYPe15.Types.Assembly
-    ( ASM(ADD, ADDIU, ADDU, AND, Asciz', B, BEQZ, BGEZ, BGTZ, BLEZ, BLTZ,
+    ( ASM(ADD, ADDIU, ADDU, AND, ANDI, Asciz', B, BEQZ, BGEZ, BGTZ, BLEZ, BLTZ,
           BNEZ, Break, DIV, Data', JAL, JR, LA, LB, LI, LW, Label,
           MFHi, MFLo, MOV, MOVZ, MUL, OR, Org',
           PrintChar, PrintInt, PrintString, ReadChar, ReadInt, ReadString,
@@ -189,10 +189,7 @@ handleAssign dst = \case
     Op.Const c -> loadConstant c
     Op.MaskByte v -> do
         loadVar T0 v
-        tell
-          [ LI T1 0xff -- Mask lowest byte
-          , AND T2 T0 T1
-          ]
+        tell [ ANDI T2 T0 0xff ] -- Mask lowest byte
         storeVar T2 dst
   where
     negateLogic :: Variable -> Assembly ()
