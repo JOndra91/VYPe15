@@ -74,6 +74,7 @@ data TAC
     | Read Variable
     | GetAt Variable Variable Variable
     | SetAt Variable Variable Variable Variable
+    | Strcat Variable Variable Variable
   deriving (Show)
 
 strTac :: TAC -> Text
@@ -95,6 +96,8 @@ strTac = \case
       [ indent $ strVar dst <> " := " <> strVar str
       , indent $ strVar dst <> "[" <> strVar off <> "]" <> " := " <> strVar char
       ]
+    Strcat dst str1 str2 ->
+      indent $ strVar dst <> " := " <> strVar str1 <> " <> " <> strVar str2
 
   where
     indent :: Text -> Text

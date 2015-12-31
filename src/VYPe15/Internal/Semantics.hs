@@ -66,7 +66,7 @@ import VYPe15.Types.SymbolTable
 import VYPe15.Types.TAC
     ( Label(Label')
     , Operator
-    , TAC(Begin, Call, GetAt, Goto, JmpZ, Label, PopParams, Print, PushParam, Read, SetAt)
+    , TAC(Begin, Call, GetAt, Goto, JmpZ, Label, PopParams, Print, PushParam, Read, SetAt, Strcat)
     )
 import qualified VYPe15.Types.TAC as TAC (TAC(Assign, Return))
 import qualified VYPe15.Types.TAC as Const (Constant(Char, Int, String))
@@ -335,6 +335,7 @@ processFunctionCall i es = do
               "read_string" -> processReadFunction DString
               "get_at" -> processGetAtFunction
               "set_at" -> processSetAtFunction
+              "strcat" -> processStrcatFunction
               _ -> processGeneralFunction
         fnProcessor params fn
   where
@@ -358,6 +359,12 @@ processFunctionCall i es = do
         tell [SetAt dst str off char]
         return $ Just dst
     processSetAtFunction _ _ = error "BUG: set_at has invalid arguments."
+
+    processStrcatFunction [Just str1, Just str2] _ = do
+        dst <- mkVar DString
+        tell [Strcat dst str1 str2]
+        return $ Just dst
+    processStrcatFunction _ _ = error "BUG: strcat has invalid arguments."
 
     processPrintFunction ps _ = do
         ps' <- mapM unJust ps

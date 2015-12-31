@@ -59,7 +59,7 @@ import VYPe15.Types.SymbolTable
 import VYPe15.Types.TAC (Constant, Label, Operator, TAC)
 import qualified VYPe15.Types.TAC as C (Constant(Char, Int, String))
 import qualified VYPe15.Types.TAC as TAC
-    ( TAC(Assign, Begin, Call, GetAt, Goto, JmpZ, Label, PopParams, Print, PushParam, Read, Return, SetAt)
+    ( TAC(Assign, Begin, Call, GetAt, Goto, JmpZ, Label, PopParams, Print, PushParam, Read, Return, SetAt, Strcat)
     )
 import qualified VYPe15.Types.TAC as Op
     ( Operator(Add, And, Const, Div, Eq, GE, GT, LE, LT, MaskByte, Mod, Mul, Neq, Not, Or, Set, Sub)
@@ -171,6 +171,7 @@ handleTAC t = case t of
     TAC.Read var -> handleRead var
     TAC.GetAt dst src off -> handleGetAt dst src off
     TAC.SetAt dst src off char -> handleSetAt dst src off char
+    TAC.Strcat dst src1 src2 -> handleStrcat dst src1 src2
 
 handleAssign :: Variable -> Operator -> Assembly ()
 handleAssign dst = \case
@@ -383,6 +384,17 @@ handleSetAt dst src off char = do
       [ ADDU T2 V1 T0
       , SB T1 $ RAM T2 0
       ]
+
+handleStrcat :: Variable -> Variable -> Variable -> Assembly ()
+handleStrcat dst src1 src2 = do
+    mkLabel "strcat" >>= tell . (:[]) . Label
+    tell [MOV V1 S0]
+    loadVar T0 src1
+    copyString' S0 T0
+    tell [ADDIU S0 S0 (-1)] -- Rewind back to terminating character.
+    loadVar T0 src2
+    copyString' S0 T0
+    storeVar V1 dst
 
 loadVar :: Register -> Variable -> Assembly ()
 loadVar r v = do
