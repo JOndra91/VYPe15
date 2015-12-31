@@ -16,28 +16,33 @@ import Control.Monad.State (get, modify, put)
 import Control.Monad.Writer (tell)
 import Data.Bool (Bool(False, True))
 import Data.Char (ord)
-import Data.Function (($), (.))
+import Data.Function (flip, ($), (.))
 import Data.Functor ((<$>))
 import Data.Int (Int32)
 import Data.List (groupBy, reverse)
-import qualified Data.Map as M (empty)
+import qualified Data.Map as M (empty, foldlWithKey)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Monoid ((<>))
 import Data.Text (Text, unlines)
-import Data.Tuple (uncurry)
 
 import VYPe15.Internal.Util (showText)
 import VYPe15.Types.Assembly
-    ( ASM(ADD, ADDIU, AND, Asciz', B, BEQZ, BGEZ, BGTZ, BLEZ, BLTZ, BNEZ, Break, DIV, Data', JAL, JR, LA, LB, LI, LW, Label, MFHi, MFLo, MOV, MOVZ, MUL, OR, Org', PrintChar, PrintInt, PrintString, ReadChar, ReadInt, ReadString, SB, SUB, SW, Text')
+    ( ASM(ADD, ADDIU, ADDU, AND, Asciz', B, BEQZ, BGEZ, BGTZ, BLEZ, BLTZ,
+          BNEZ, Break, DIV, Data', JAL, JR, LA, LB, LI, LW, Label,
+          MFHi, MFLo, MOV, MOVZ, MUL, OR, Org',
+          PrintChar, PrintInt, PrintString, ReadChar, ReadInt, ReadString,
+          SB, SUB, SW, Text')
     , Address(RAM)
     , Assembly
-    , AssemblyState(AssemblyState, functionLabel, labelCounter, paramCounter, stringCounter, stringTable, variableCounter, variableTable)
-    , Register(A0, FP, RA, SP, T0, T1, T2, T3, V0)
+    , AssemblyState(AssemblyState, functionLabel, functionType, labelCounter,
+          paramCounter, stringCounter, stringTable, variableCounter, variableTable)
+    , Register(A0, FP, RA, S0, SP, T0, T1, T2, T3, T7, V0, V1)
     , addParam
     , addString
     , addVariable
     , evalAssembly
     , getFunctionLabel
+    , getFunctionType
     , getReturnLabel
     , getVarAddr
     , lookupVarAddr
@@ -50,7 +55,7 @@ import VYPe15.Types.AST
     , getTypeSize
     )
 import VYPe15.Types.SymbolTable
-    (Function(functionParams), Variable(Variable, varType))
+    (Function(functionParams, functionReturn), Variable(Variable, varType))
 import VYPe15.Types.TAC (Constant, Label, Operator, TAC)
 import qualified VYPe15.Types.TAC as C (Constant(Char, Int, String))
 import qualified VYPe15.Types.TAC as TAC
@@ -77,12 +82,13 @@ generateAssembly tac =
 
     initialState = AssemblyState
       { variableTable = M.empty
-      , stringTable = []
+      , stringTable = M.empty
       , stringCounter = 0
       , paramCounter = 0
       , variableCounter = 0
       , labelCounter = 0
       , functionLabel = "__quit_program__"
+      , functionType = Nothing
       }
 
     generateAssembly' :: [TAC] -> Assembly ()
@@ -97,13 +103,15 @@ generateAssembly tac =
       where
         asm' = dataSection <> codeSection
 
-        dataSection = Data' : (uncurry Asciz' <$> stringTable)
+        dataSection = Data' :
+            M.foldlWithKey (\b -> ((: b) .) . flip Asciz') [] stringTable
 
         codeSection =
           [ Text'
           , Org' 0
           , LI SP 0x8000
           , MOV FP SP
+          , ADDIU S0 SP 0x04 -- Small gap between stack and heap just for safety.
           , JAL "main"
           , Break
           ]
@@ -120,7 +128,8 @@ generateAssembly tac =
           [ Label functionL
           , SW RA (sp 0)
           , SW FP (sp (-4))
-          , ADDIU SP SP (-8)
+          , SW S0 (sp (-8))
+          , ADDIU SP SP (-12)
           , MOV FP SP
           , ADDIU SP SP stackSize -- stackSize is already negative
           ]
@@ -128,11 +137,18 @@ generateAssembly tac =
         -- Outro
         tell
           [ Label returnL
-          , ADDIU SP FP 8
+          , ADDIU SP FP 12
           , LW RA (sp 0)
           , LW FP (sp (-4))
-          , JR RA
+          , LW S0 (sp (-8))
           ]
+
+        getFunctionType >>= \case
+            Nothing -> tell [LI V0 0]
+            Just DString -> copyString' V0 S0 >> tell [MOV V0 S0]
+            _ -> pure ()
+
+        tell [ JR RA ]
 
     sp :: Int32 -> Address
     sp = RAM SP
@@ -255,8 +271,9 @@ handleBegin l fn = do
     modify (\s -> s
         { variableTable = M.empty
         , functionLabel = l
+        , functionType = functionReturn fn
         , variableCounter = 0
-        , paramCounter = 8 -- There is offset due to stack frame.
+        , paramCounter = 12 -- There is offset due to stack frame.
         })
     mapM_ (addParam . paramToVar)  $ functionParams fn
   where
@@ -325,18 +342,45 @@ handleRead v@(Variable _ vType) = do
       , sv v T0 v'
       ]
 
+copyString :: Variable -> Variable -> Assembly ()
+copyString dst src = do
+    loadVar T0 src
+    tell [MOV V1 S0]
+    copyString' S0 T0
+    storeVar V1 dst
+
+copyString' :: Register -> Register -> Assembly ()
+copyString' dst src = do
+    begin <- mkLabel "copy_string"
+    tell
+      [ Label begin
+      , LB T7 (RAM src 0)
+      , SB T7 (RAM dst 0)
+      -- v Strings are stored on heap which grows from low to high
+      , ADDIU src src 1
+      , ADDIU dst dst 1
+      , BNEZ T7 begin
+      ]
+
 handleGetAt :: Variable -> Variable -> Variable -> Assembly ()
 handleGetAt dst src off = do
     loadVar T0 src
     loadVar T1 off
     tell
-      [ ADD T2 T0 T1
+      [ ADDU T2 T0 T1
       , LB T3 $ RAM T2 0
       ]
     storeVar T3 dst
 
 handleSetAt :: Variable -> Variable -> Variable -> Variable -> Assembly ()
-handleSetAt _ _ _ _ = error "set_at is not implemented yet. :("
+handleSetAt dst src off char = do
+    copyString dst src
+    loadVar T0 off
+    loadVar T1 char
+    tell
+      [ ADDU T2 V1 T0
+      , SB T1 $ RAM T2 0
+      ]
 
 loadVar :: Register -> Variable -> Assembly ()
 loadVar r v = do

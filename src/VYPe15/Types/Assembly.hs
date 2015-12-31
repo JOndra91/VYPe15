@@ -12,12 +12,12 @@ import Control.Applicative (Applicative)
 import Control.Monad (Monad, return, (>>=))
 import Control.Monad.State (MonadState, State, get, runState, state)
 import Control.Monad.Writer (MonadWriter, WriterT, execWriterT)
-import Data.Function (($), (.))
+import Data.Function (id, ($), (.))
 import Data.Functor (Functor, (<$>))
 import Data.Int (Int32)
 import Data.Map (Map)
 import qualified Data.Map as M (insert, lookup)
-import Data.Maybe (Maybe(Just, Nothing))
+import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
 import Data.Monoid ((<>))
 import Data.String (String)
 import Data.Text (Text, unpack)
@@ -26,19 +26,20 @@ import Data.Word (Word32)
 import Text.Show (Show(show))
 
 import VYPe15.Internal.Util (showText)
-import VYPe15.Types.AST (getTypeSize)
+import VYPe15.Types.AST (DataType, getTypeSize)
 import VYPe15.Types.SymbolTable (Variable(varType))
 import VYPe15.Types.TAC (Label(Label', label'))
 
 
 type VariableTable = Map Variable Address
 
-type StringTable = [(Word32,Text)]
+type StringTable = Map Text Word32
 
 data AssemblyState = AssemblyState
     { variableTable :: VariableTable
     , stringTable :: StringTable
     , functionLabel :: Label
+    , functionType :: Maybe DataType
     , stringCounter :: Word32
     , paramCounter :: Int32
     , variableCounter :: Int32
@@ -62,6 +63,7 @@ data Register
     | T5 -- ^ [$13] Temporaries
     | T6 -- ^ [$14] Temporaries
     | T7 -- ^ [$15] Temporaries
+    | S0 -- ^ [$16] Saved
     | SP -- ^ [$29] Stack Pointer
     | FP -- ^ [$30] Frame Pointer
     | RA -- ^ [$31] Return Address
@@ -83,6 +85,7 @@ instance Show Register where
         T5 -> "$13"
         T6 -> "$14"
         T7 -> "$15"
+        S0 -> "$16"
         SP -> "$sp"
         FP -> "$fp"
         RA -> "$ra"
@@ -117,6 +120,7 @@ data ASM
     | MOVZ Register Register Register
     -- Arithmetic
     | ADD Register Register Register
+    | ADDU Register Register Register
     | SUB Register Register Register
     | MUL Register Register -- ^ Stores 64-bit result in Hi and Lo registers
     | DIV Register Register -- ^ Stores result in Lo and remainder in Hi register
@@ -168,6 +172,7 @@ instance Show ASM where
         MOV reg0 reg1 -> indent $ inst2 "move" reg0 reg1
         MOVZ dst src test -> indent $ inst3 "movz" dst src test
         ADD reg0 reg1 reg2 -> indent $ inst3 "add" reg0 reg1 reg2
+        ADDU reg0 reg1 reg2 -> indent $ inst3 "addu" reg0 reg1 reg2
         SUB reg0 reg1 reg2 -> indent $ inst3 "sub" reg0 reg1 reg2
         MUL reg0 reg1 -> indent $ inst2 "mult" reg0 reg1
         DIV reg0 reg1 -> indent $ inst2 "div" reg0 reg1
@@ -271,11 +276,23 @@ addString t = state withState
   where
     withState s = (stringAddress, newState)
       where
-        stringAddress = Data $ "__asciizString_" <> showText (stringCounter s)
+        entry = M.lookup t (stringTable s)
+
+        strId = fromMaybe (stringCounter s) entry
+
+        stringAddress = Data $ "__asciizString_" <> showText strId
+
+        table = case entry of
+            Just _ -> stringTable s
+            Nothing -> M.insert t strId $ stringTable s
+
+        succ' = case entry of
+            Just _ -> id
+            Nothing -> succ
 
         newState = s
-          { stringCounter = succ $ stringCounter s
-          , stringTable = (stringCounter s, t) : stringTable s
+          { stringCounter = succ' $ stringCounter s
+          , stringTable = table
           }
 
 mkLabel :: Text -> Assembly Label
@@ -303,3 +320,6 @@ getFunctionLabel = functionLabel <$> get
 
 getReturnLabel :: Assembly Label
 getReturnLabel = (\t -> "__" <> t <> "_return_") <$> getFunctionLabel
+
+getFunctionType :: Assembly (Maybe DataType)
+getFunctionType = functionType <$> get
