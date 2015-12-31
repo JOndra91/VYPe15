@@ -61,7 +61,7 @@ import qualified VYPe15.Types.TAC as TAC
     ( TAC(Assign, Begin, Call, Goto, JmpZ, Label, PopParams, Print, PushParam, Read, Return)
     )
 import qualified VYPe15.Types.TAC as Op
-    ( Operator(Add, And, Const, Div, Eq, GE, GT, LE, LT, Mod, Mul, Neq, Not, Or, Set, Sub)
+    ( Operator(Add, And, Const, Div, Eq, GE, GT, LE, LT, MaskByte, Mod, Mul, Neq, Not, Or, Set, Sub)
     )
 
 
@@ -179,6 +179,13 @@ handleAssign dst = \case
     Op.GT v1 v2 -> binaryOpLogic BGTZ v1 v2 "GT"
     Op.GE v1 v2 -> binaryOpLogic BGEZ v1 v2 "GE"
     Op.Const c -> loadConstant c
+    Op.MaskByte v -> do
+        loadVar T0 v
+        tell
+          [ LI T1 0xff -- Mask lowest byte
+          , AND T2 T0 T1
+          ]
+        storeVar T2 dst
   where
     loadVar :: Register -> Variable -> Assembly ()
     loadVar r v = do

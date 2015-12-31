@@ -38,6 +38,7 @@ data Operator
     | Sub Variable Variable
     | Add Variable Variable
     | Set Variable
+    | MaskByte Variable
     | And Variable Variable
     | Or Variable Variable
     | Not Variable
@@ -103,6 +104,7 @@ strTac = \case
         Sub a b -> op2 a b "-"
         Add a b -> op2 a b "+"
         Set a -> strVar a
+        MaskByte a -> strVar a <> " & 0x000000ff"
         And a b -> op2 a b "&&"
         Or a b -> op2 a b "||"
         Not a -> op1 a "!"

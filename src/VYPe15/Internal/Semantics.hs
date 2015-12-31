@@ -71,7 +71,7 @@ import VYPe15.Types.TAC
 import qualified VYPe15.Types.TAC as TAC (TAC(Assign, Return))
 import qualified VYPe15.Types.TAC as Const (Constant(Char, Int, String))
 import qualified VYPe15.Types.TAC as Op
-    ( Operator(Add, And, Const, Div, Eq, GE, GT, LE, LT, Mod, Mul, Neq, Not, Or, Set, Sub)
+    ( Operator(Add, And, Const, Div, Eq, GE, GT, LE, LT, MaskByte, Mod, Mul, Neq, Not, Or, Set, Sub)
     )
 
 semanticAnalysis :: Program -> Either SError [TAC]
@@ -155,7 +155,10 @@ processStatements ss = pushVars M.empty >> mapM_ processStatement ss >> popVars
             dest <- findVar i
             res <- processExpression e
             unless (isJust res) $ throwError $ SError voidAssign
-            void $ dest <= Op.Set (fromJust res)
+            let src = fromJust res
+            unless (varType src == varType dest)
+              $ throwError $ SError $ invalidExprType res $ Just $ varType dest
+            void $ dest <= Op.Set src
         VarDef d i ->
             mapM_ ((`putVar` d) >=> initVar) i
         If e s s' -> do
@@ -234,9 +237,7 @@ processExpression = \case
     NOT e -> processExpression e >>= \case
         Just v@(Variable _ DInt) -> DInt *= Op.Not v
         t -> throwError $ SError $ cannotMatchMsg' t
-    Cast t e -> processExpression e >>= \case
-        Just v -> t *= Op.Set v
-        v -> throwError $ SError $ invalidCast v t
+    Cast t e -> castValue t e
     ConsNum i -> DInt *= Op.Const (Const.Int i)
     ConsString s -> DString *= Op.Const (Const.String s)
     ConsChar c ->  DChar *= Op.Const (Const.Char c)
@@ -247,6 +248,24 @@ processExpression = \case
 
     IdentifierExp i -> Just <$> findVar (Identifier i)
   where
+    castValue t e = do
+        v' <- processExpression e
+        case v' of
+          Just v -> castValue' t v
+          v -> throwError $ SError $ invalidCast v t
+
+    castValue' t v
+        | t == varType v = t *= Op.Set v
+        | otherwise = case (varType v, t) of
+            -- (from-type, to-type)
+            (DInt, DChar) -> t *= Op.MaskByte v
+            (DChar, DInt) -> t *= Op.Set v
+            (DChar, DString) -> throwError "Casting from char to string is not implemented. :("
+            _ -> invalidCastErr
+      where
+        invalidCastErr = throwError $ SError $ invalidCast (Just v) t
+
+
     matchLogical op e1 e2 = do
         t1 <- processExpression e1
         t2 <- processExpression e2
