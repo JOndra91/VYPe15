@@ -364,6 +364,7 @@ copyString' dst src = do
 
 handleGetAt :: Variable -> Variable -> Variable -> Assembly ()
 handleGetAt dst src off = do
+    mkLabel "get_at" >>= tell . (:[]) . Label
     loadVar T0 src
     loadVar T1 off
     tell
@@ -374,6 +375,7 @@ handleGetAt dst src off = do
 
 handleSetAt :: Variable -> Variable -> Variable -> Variable -> Assembly ()
 handleSetAt dst src off char = do
+    mkLabel "set_at" >>= tell . (:[]) . Label
     copyString dst src
     loadVar T0 off
     loadVar T1 char
