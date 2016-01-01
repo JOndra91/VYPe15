@@ -6,7 +6,7 @@ export PATH := $(wildcard stack-*-$(STACK_BASE)):$(PATH)
 vype: stack
 	stack setup
 	stack build
-	mv .stack-work/install/*/*/*/bin/VYPe15 vype
+	cp .stack-work/install/*/*/*/bin/VYPe15 vype
 
 stack: $(STACK_BASE).tar.gz
 	tar xzf $<
