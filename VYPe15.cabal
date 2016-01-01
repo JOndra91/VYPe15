@@ -17,6 +17,7 @@ executable VYPe15
   main-is:             Main.hs
   other-modules:       VYPe15.Internal.AssemblyGenerator
                        VYPe15.Internal.Parser
+                       VYPe15.Internal.Lexer
                        VYPe15.Internal.Semantics
                        VYPe15.Internal.Util
                        VYPe15.Types.AST

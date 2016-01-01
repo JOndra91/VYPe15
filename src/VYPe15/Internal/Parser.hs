@@ -74,14 +74,11 @@ table = [
         ]
 
 term :: Parser Exp
-term = choice $ fmap try
-    [ funcCall
-    , m_parens exprparser
-    , IdentifierExp . fromString <$> m_identifier
-    , ConsChar <$> m_charLit
-    , ConsString . fromString <$> m_stringLit
-    , ConsNum . fromInteger <$> m_integer
-    ]
+term = (try funcCall) <|> m_parens exprparser
+    <|> IdentifierExp . fromString <$> m_identifier
+    <|> ConsChar <$> m_charLit
+    <|> ConsString . fromString <$> m_stringLit
+    <|> ConsNum . fromInteger <$> m_integer
   where
     funcCall = FuncCallExp
         <$> fmap fromString m_identifier
