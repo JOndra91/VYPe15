@@ -2,15 +2,15 @@
 
 \title{Compiler construction - VYPe15 project documentation}
 \author{
-	Kidon, Marek\\
+	Kidoň Marek\\
 	\texttt{xkidon00@stud.fit.vutbr.cz}
 \and 
-	Janosik, Ondrej\\
+	Janošík, Ondřej\\
 	\texttt{xjanos12@stud.fit.vutbr.cz}
 }
 \date{}
 
-\usepackage[utf8]{inputenc}
+\usepackage[latin2]{inputenc}
 \usepackage[IL2]{fontenc}
 \usepackage{graphicx}
 \usepackage{syntax}
@@ -23,7 +23,7 @@
 \section{Introduction}
 This paper describes the architecture and implementation of the \textit{VYPe15} language
 compiler. The compiler itself is implemented in Haskell without any use of compiler 
-automatization
+automation
 tools such as \textbf{lex} \cite{lex}, \textbf{yacc} \cite{yacc} or 
 other tools for reasons that will be explained in chapter 
 \ref{sec:implementation}. Also the well established concept of 
@@ -52,10 +52,12 @@ such as :
 	\item the monadic parser stack would be way too complex to produce reasonable code
 		(see chapter \ref{sec:implementation} for further information),
 	\item Haskell is lazy-evaluated, so putting semantic analyzer behind the parser does
-		not necessarily imply that semantic analysis is performed once parsing is done.
+		not necessarily mean that semantic analysis is performed \textit{after}
+		parsing is done.
 \end{itemize}
 
-The last component is the optimizer/target code generator duo, which is fairly standard.
+The last two components are the optimizer and target code generator duo, which is fairly 
+standard.
 
 \subsection{Grammar}
 In our parser we implemented the following grammar.
@@ -87,7 +89,7 @@ In our parser we implemented the following grammar.
              | <numLit>          
 \end{verbatim}
 
-Please not that comments and other lexer related parts of grammar are not displayed.
+Please note that comments and other lexer related parts of grammar are not displayed.
 The \texttt{<identifier>}, \texttt{<charLit>}, \texttt{<stringLit>} and \texttt{<numLit>}
 production rules are taken directly from project assignment, so we don't specify them
 again. Because this grammar can't be implemented using the standard LL(1) parser, we
@@ -104,14 +106,14 @@ implemented using the Parsec library are fast, deliver very good error messages 
 are generic on the input stream type.
 
 The expression parser was generated using parser generator delivered as a part of the
-library. The rest of the parser has been implemented manually. It seems like an 
+library. The rest of the parser has been however implemented manually. It seems like an 
 unnecessary work, but since Parsec supports applicative-style programming, 
-constructing the parser is very similar to writing a grammar thanks to the well 
+constructing the parser is very similar to writing the actual grammar thanks to the well 
 designed combinators such as the \texttt{many}, \texttt{<|>} and others.
 
 We are very satisfied with the way our solution works compare to the \texttt{happy}
 \footnote{https://www.haskell.org/happy/} \cite{happy} and \texttt{alex} 
-\footnote{https://www.haskell.org/alex/} solution we used previously. The number one
+\footnote{https://www.haskell.org/alex/} solution we used in early stages. The number one
 reason is that the parser description in the happy language is not part of our 
 compiler, which makes the debugging process much more time consuming and difficult
 because there is no type safety. Although happy would generate a parser, the parser
@@ -131,16 +133,19 @@ storage.
 
 \subsection{Omtimization and code generation}
 Unfortunately target code generation is performed directly from intermediate code because
-we didn't find time to implement it properly. Target code generation is implemented 
+we didn't find the time to implement it properly. Target code generation is implemented 
 using the \texttt{WriterT} and \texttt{State} monad stack. Writer serves as target code 
 instructions storage and State holds the register table plus some other information and 
 helps with simulating the stack frame in assembly language. 
 
 \section{Compilation}
-To compile this project the Haskell platform\footnote{https://www.haskell.org/platform/}
+\label{sec:compilation}
+To compile this project the Haskell platform \footnote{https://www.haskell.org/platform/} 
+\footnote{tested on the \texttt{7.10.3 version}}
 is required. It contains all necessary libraries for any serious haskell programming
-and is a standard for haskell developers. It contains the \texttt{GHC} (Glorious Glasgow
-Haskell compiler) widely-used libraries and the \texttt{cabal} build system.
+and is de-facto a standard platform for Haskell developers. It contains the \texttt{GHC} 
+(Glorious Glasgow
+Haskell compiler), some widely-used libraries and the \texttt{cabal} build system.
 To compile our project just type \texttt{make}.
 
 We use cabal to build our project so if cabal is missing, the project won't build. 
@@ -149,7 +154,8 @@ All libraries used in our project are part of the Haskell platform.
 \section{Conclusion}
 In our project we implemented compiler for the VYPe15 programming language. Compiler
 is written in Haskell, purely functional programming language. In chapter 
-\ref{fig:architecture} we explained that our compiler designed comes from the fact
+\ref{fig:architecture} we explained that our compiler high-level design comes from the 
+fact
 that Haskell is lazy evaluated and in chapter \ref{sec:implementation} we described the 
 implementation process and decisions we have taken.
 
@@ -160,6 +166,9 @@ and intermediate code generator are strongly connected in our project.
 
 Optimizer for time reasons was not implemented and it is basically an identity
 function in the end. 
+
+The section \ref{sec:compilation} describes necessary steps that are mandatory in order
+to successfully compile our project.
 
 \newpage
 \bibliographystyle{alpha}
