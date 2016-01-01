@@ -14,5 +14,8 @@ stack: $(STACK_BASE).tar.gz
 $(STACK_BASE).tar.gz:
 	wget $(STACK_URL) -O $@
 
+pack:
+	zip xkidon00.zip -r src Makefile dokumentace.pdf rozdeleni stack.yaml LICENSE VYPe15.cabal
+
 .PHONY:
 	stack
