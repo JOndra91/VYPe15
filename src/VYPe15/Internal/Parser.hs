@@ -40,7 +40,9 @@ import VYPe15.Internal.Lexer
     )
 import VYPe15.Types.AST
     ( DataType(DChar, DInt, DString)
-    , Exp(AND, Cast, ConsChar, ConsNum, ConsString, Div, Eq, FuncCallExp, Greater, GreaterEq, IdentifierExp, Less, LessEq, Minus, Mod, NOT, NonEq, OR, Plus, Times)
+    , Exp(AND, Cast, ConsChar, ConsNum, ConsString, Div, Eq, FuncCallExp
+    , Greater, GreaterEq, IdentifierExp, Less, LessEq, Minus, Mod, NOT
+    , NonEq, OR, Plus, Times)
     , FunDeclrOrDef(FunDeclr, FunDef)
     , Param(AnonymousParam, Param)
     , Program
