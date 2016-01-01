@@ -15,7 +15,7 @@ import Data.Maybe (Maybe(Just, Nothing))
 import Data.String (String, fromString)
 
 import Data.Default (Default(def))
-import Text.Parsec (ParsecT, eof, many, spaces, try, (<?>), (<|>))
+import Text.Parsec (ParsecT, eof, many, try, (<?>), (<|>))
 import Text.Parsec.Expr
     ( Assoc(AssocLeft)
     , Operator(Infix, Prefix)
@@ -36,6 +36,7 @@ import VYPe15.Internal.Lexer
     , m_reservedOp
     , m_semi
     , m_stringLit
+    , m_whiteSpace
     )
 import VYPe15.Types.AST
     ( DataType(DChar, DInt, DString)
@@ -144,7 +145,6 @@ voidParser = return def <* m_reserved "void"
 
 programParser :: Parser Program
 programParser = many (try parseFunDeclr <|> parseFunDef)
-                <* spaces
   where
     returnTypeParser = Just <$> dataTypeParser <|> voidParser
     parseFunDeclr = FunDeclr
@@ -160,4 +160,4 @@ programParser = many (try parseFunDeclr <|> parseFunDef)
         <*> m_braces statparser
 
 parseVYPe15 :: Parser Program
-parseVYPe15 = programParser <* eof
+parseVYPe15 = m_whiteSpace >> programParser <* eof
