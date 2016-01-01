@@ -1,90 +1,103 @@
+.data
+__null_string_:  .byte  0
 .text
 .org 0
-
-LI $sp, 0x4000
-MOVE $fp, $sp
-JAL main
-BREAK
-
-main:
-  // v Function call block
-  SW $ra, ($sp)
-  SW $fp, -4($sp)
-  ADDIU $sp, $sp, -8
-  MOVE $fp, $sp
-  // ^ Function call block
-
-  // Stack allocation
-  ADDIU $sp, $sp, -4
-
-  LI $8, 65
-  print_char $8
-  JAL fn
-  LI $8, 66
-  print_char $8
-  LI $8, 10
-  print_char $8
-
-  LI $9, 15
-  SW $9, 4($sp)
-  JAL recursive
-
-  // Stack deallocation
-  //ADDIU $sp, $sp, 4
-
-  // v Function return block
-  MOVE $sp, $fp
-  LW $fp, 4($sp)
-  LW $ra, 8($sp)
-
-  JR $ra
-  // ^ Function return block
-
-fn:
-  SW $ra, ($sp)
-  SW $fp, -4($sp)
-  ADDIU $sp, $sp, -8
-  MOVE $fp, $sp
-
-  LI $8, 10
-  print_char $8
-
-  ADDIU $sp, $fp, 8
-  LW $ra, 0($sp)
-  LW $fp, -4($sp)
-
-  JR $ra
-
-recursive:
-  SW $ra, ($sp)
-  SW $fp, -4($sp)
-  ADDIU $sp, $sp, -8
-  MOVE $fp, $sp
-
-  // Stack allocation
-  ADDIU $sp, $sp, -4
-
-  LW $8, 12($fp)
-
-  beq $8, $0, recursive_end
-
+  li $sp, 32768
+  move $fp, $sp
+  addiu $16, $sp, 4
+  jal main
+  break
+recurse:
+  sw $ra, 0($sp)
+  sw $fp, -4($sp)
+  sw $16, -8($sp)
+  addiu $sp, $sp, -12
+  move $fp, $sp
+  addiu $sp, $sp, -32
+  li $8, 10
+  sb $8, 0($fp)
+  lw $8, 16($fp)
   print_int $8
-  ADDIU $8, $8, -1
-
-  SW $8, 4($sp)
-
-  LI $8, 10
+  lb $8, 0($fp)
   print_char $8
-
-  JAL recursive
-
-recursive_end:
-
-  // Stack deallocation
-  ADDIU $sp, $sp, 4
-
-  ADDIU $sp, $fp, 8
-  LW $ra, 0($sp)
-  LW $fp, -4($sp)
-
-  JR $ra
+  li $8, 0
+  sw $8, -4($fp)
+  lw $8, 16($fp)
+  lw $9, -4($fp)
+  li $10, 1
+  sub $11, $8, $9
+  bgtz $11, label__GT_0
+  li $10, 0
+label__GT_0:
+  sw $10, -8($fp)
+  lw $8, -8($fp)
+  beq $8, $0, IfElse_0
+  li $8, 1
+  sw $8, -12($fp)
+  lw $8, 16($fp)
+  lw $9, -12($fp)
+  sub $10, $8, $9
+  sw $10, -16($fp)
+  lw $4, -16($fp)
+  sw $4, 0($sp)
+  addiu $sp, $sp, -4
+  jal recurse
+  addiu $sp, $sp, 4
+  b IfEnd_0
+IfElse_0:
+  li $8, 79
+  sb $8, -20($fp)
+  li $8, 75
+  sb $8, -24($fp)
+  li $8, 10
+  sb $8, -28($fp)
+  lb $8, -20($fp)
+  print_char $8
+  lb $8, -24($fp)
+  print_char $8
+  lb $8, -28($fp)
+  print_char $8
+IfEnd_0:
+  li $2, 0
+  b __recurse_return_
+__recurse_return_:
+  addiu $sp, $fp, 12
+  lw $ra, 0($sp)
+  lw $fp, -4($sp)
+  lw $16, -8($sp)
+  jr $ra
+main:
+  sw $ra, 0($sp)
+  sw $fp, -4($sp)
+  sw $16, -8($sp)
+  addiu $sp, $sp, -12
+  move $fp, $sp
+  addiu $sp, $sp, -16
+  li $8, 0
+  sw $8, 0($fp)
+  li $8, 5
+  sw $8, -4($fp)
+  lw $8, -4($fp)
+  sw $8, 0($fp)
+  li $8, 10
+  sw $8, -8($fp)
+  lw $4, -8($fp)
+  sw $4, 0($sp)
+  addiu $sp, $sp, -4
+  jal recurse
+  addiu $sp, $sp, 4
+  li $8, 5
+  sw $8, -12($fp)
+  lw $4, -12($fp)
+  sw $4, 0($sp)
+  addiu $sp, $sp, -4
+  jal recurse
+  addiu $sp, $sp, 4
+  li $2, 0
+  b __main_return_
+__main_return_:
+  addiu $sp, $fp, 12
+  lw $ra, 0($sp)
+  lw $fp, -4($sp)
+  lw $16, -8($sp)
+  jr $ra

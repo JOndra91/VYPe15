@@ -74,11 +74,13 @@ table = [
         ]
 
 term :: Parser Exp
-term = (try funcCall) <|> m_parens exprparser
-    <|> IdentifierExp . fromString <$> m_identifier
-    <|> ConsChar <$> m_charLit
-    <|> ConsString . fromString <$> m_stringLit
-    <|> ConsNum . fromInteger <$> m_integer
+term = (try funcCall) <|> choice
+        [ m_parens exprparser
+        , IdentifierExp . fromString <$> m_identifier
+        , ConsChar <$> m_charLit
+        , ConsString . fromString <$> m_stringLit
+        , ConsNum . fromInteger <$> m_integer
+        ]
   where
     funcCall = FuncCallExp
         <$> fmap fromString m_identifier
@@ -87,9 +89,8 @@ term = (try funcCall) <|> m_parens exprparser
 statparser :: Parser [Stat]
 statparser = many statement
   where
-    statement = choice $ fmap try
-        [ assignStatement
-        , whileStatement
+    statement = try assignStatement <|> choice
+        [ whileStatement
         , ifStatement
         , returnStatement
         , funCallStatement
@@ -145,7 +146,7 @@ voidParser :: Default a => Parser a
 voidParser = return def <* m_reserved "void"
 
 programParser :: Parser Program
-programParser = many $ choice $ fmap try [ parseFunDeclr, parseFunDef]
+programParser = many $ choice [try parseFunDeclr, parseFunDef]
   where
     returnTypeParser = Just <$> dataTypeParser <|> voidParser
     parseFunDeclr = FunDeclr

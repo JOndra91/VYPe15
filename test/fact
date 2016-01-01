@@ -1,0 +1,15 @@
+int main(void) {
+    int a, vysl;
+    print("input factorial number");
+    a = read_int();
+    if (a < 0) {
+        print ("nelze spocitat");
+    } else {
+        vysl = 1;
+        while( a > 0) {
+            vysl = vysl * a;
+            a = a - 1;
+        }
+        print ("\n res : ", vysl, "\n");
+    }
+}
