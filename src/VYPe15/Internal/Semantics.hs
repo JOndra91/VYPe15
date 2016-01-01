@@ -68,8 +68,8 @@ import VYPe15.Types.SymbolTable
 import VYPe15.Types.TAC
     ( Label(Label')
     , Operator
-    , TAC(Begin, Call, GetAt, Goto, JmpZ, Label, PopParams, Print, PushParam,
-          Read, SetAt, Strcat)
+    , TAC(Begin, Call, ChrStr, GetAt, Goto, JmpZ, Label, PopParams, Print,
+          PushParam, Read, SetAt, Strcat)
     )
 import qualified VYPe15.Types.TAC as TAC (TAC(Assign, Return))
 import qualified VYPe15.Types.TAC as Const (Constant(Char, Int, String))
@@ -274,7 +274,10 @@ processExpression = \case
             -- (from-type, to-type)
             (DInt, DChar) -> t *= Op.MaskByte v
             (DChar, DInt) -> t *= Op.Set v
-            (DChar, DString) -> throwError "Casting from char to string is not implemented. :("
+            (DChar, DString) -> do
+                str <- mkVar DString
+                tell [ChrStr str v]
+                return $ Just str
             _ -> invalidCastErr
       where
         invalidCastErr = throwError $ SError $ invalidCast (Just v) t

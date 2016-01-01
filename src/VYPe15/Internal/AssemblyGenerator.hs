@@ -36,7 +36,7 @@ import VYPe15.Types.Assembly
     , Assembly
     , AssemblyState(AssemblyState, functionLabel, functionType, labelCounter,
           paramCounter, stringCounter, stringTable, variableCounter, variableTable)
-    , Register(A0, FP, RA, S0, SP, T0, T1, T2, T3, T7, V0, V1)
+    , Register(A0, FP, RA, S0, SP, T0, T1, T2, T3, T7, V0, V1, Zero)
     , addParam
     , addString
     , addVariable
@@ -59,10 +59,12 @@ import VYPe15.Types.SymbolTable
 import VYPe15.Types.TAC (Constant, Label, Operator, TAC)
 import qualified VYPe15.Types.TAC as C (Constant(Char, Int, String))
 import qualified VYPe15.Types.TAC as TAC
-    ( TAC(Assign, Begin, Call, GetAt, Goto, JmpZ, Label, PopParams, Print, PushParam, Read, Return, SetAt, Strcat)
+    ( TAC(Assign, Begin, Call, ChrStr, GetAt, Goto, JmpZ, Label, PopParams,
+          Print, PushParam, Read, Return, SetAt, Strcat)
     )
 import qualified VYPe15.Types.TAC as Op
-    ( Operator(Add, And, Const, Div, Eq, GE, GT, LE, LT, MaskByte, Mod, Mul, Neq, Not, Or, Set, Sub)
+    ( Operator(Add, And, Const, Div, Eq, GE, GT, LE, LT, MaskByte, Mod, Mul,
+          Neq, Not, Or, Set, Sub)
     )
 
 
@@ -179,6 +181,7 @@ handleTAC t = case t of
     TAC.GetAt dst src off -> handleGetAt dst src off
     TAC.SetAt dst src off char -> handleSetAt dst src off char
     TAC.Strcat dst src1 src2 -> handleStrcat dst src1 src2
+    TAC.ChrStr dst src -> handleChrStr dst src
 
 handleAssign :: Variable -> Operator -> Assembly ()
 handleAssign dst = \case
@@ -412,6 +415,18 @@ handleStrcat dst src1 src2 = do
     tell [ADDIU S0 S0 (-1)] -- Rewind back to terminating character.
     loadVar T0 src2
     copyString' S0 T0
+    storeVar V1 dst
+
+handleChrStr :: Variable -> Variable -> Assembly ()
+handleChrStr dst src = do
+    mkLabel "chrStr" >>= tell . (:[]) . Label
+    loadVar T7 src
+    tell
+      [ MOV V1 S0
+      , SB T7 (RAM S0 0)
+      , SB Zero (RAM S0 1) -- String terminator
+      , ADDIU S0 S0 2
+      ]
     storeVar V1 dst
 
 loadVar :: Register -> Variable -> Assembly ()

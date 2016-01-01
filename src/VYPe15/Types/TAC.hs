@@ -75,6 +75,8 @@ data TAC
     | GetAt Variable Variable Variable
     | SetAt Variable Variable Variable Variable
     | Strcat Variable Variable Variable
+    | ChrStr Variable Variable
+    -- ^ Cast char to string.
   deriving (Show)
 
 strTac :: TAC -> Text
@@ -93,11 +95,13 @@ strTac = \case
     GetAt dst str off ->
         indent $ strVar dst <> " := " <> strVar str <> "[" <> strVar off <> "]"
     SetAt dst str off char -> unlines
-      [ indent $ strVar dst <> " := " <> strVar str
-      , indent $ strVar dst <> "[" <> strVar off <> "]" <> " := " <> strVar char
-      ]
+        [ indent $ strVar dst <> " := " <> strVar str
+        , indent $ strVar dst <> "[" <> strVar off <> "]" <> " := " <> strVar char
+        ]
     Strcat dst str1 str2 ->
-      indent $ strVar dst <> " := " <> strVar str1 <> " <> " <> strVar str2
+        indent $ strVar dst <> " := " <> strVar str1 <> " <> " <> strVar str2
+    ChrStr dst src ->
+        indent $ strVar dst <> "[0]" <> " := " <> strVar src
 
   where
     indent :: Text -> Text
