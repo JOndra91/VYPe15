@@ -15,7 +15,7 @@ import Data.Maybe (Maybe(Just, Nothing))
 import Data.String (String, fromString)
 
 import Data.Default (Default(def))
-import Text.Parsec (ParsecT, eof, many, try, (<?>), (<|>))
+import Text.Parsec (ParsecT, choice, eof, many, try, (<?>), (<|>))
 import Text.Parsec.Expr
     ( Assoc(AssocLeft)
     , Operator(Infix, Prefix)
@@ -40,9 +40,7 @@ import VYPe15.Internal.Lexer
     )
 import VYPe15.Types.AST
     ( DataType(DChar, DInt, DString)
-    , Exp(AND, Cast, ConsChar, ConsNum, ConsString, Div, Eq, FuncCallExp
-    , Greater, GreaterEq, IdentifierExp, Less, LessEq, Minus, Mod, NOT
-    , NonEq, OR, Plus, Times)
+    , Exp(AND, Cast, ConsChar, ConsNum, ConsString, Div, Eq, FuncCallExp, Greater, GreaterEq, IdentifierExp, Less, LessEq, Minus, Mod, NOT, NonEq, OR, Plus, Times)
     , FunDeclrOrDef(FunDeclr, FunDef)
     , Param(AnonymousParam, Param)
     , Program
@@ -55,7 +53,7 @@ exprparser = buildExpressionParser table term <?> "expression"
 table :: OperatorTable String u Identity Exp
 table = [
           [ Prefix (m_reservedOp "!" >> return NOT) ]
-        , [ Prefix (Cast <$> m_parens dataTypeParser) ]
+        , [ Prefix (Cast <$> try (m_parens dataTypeParser)) ]
         , [ Infix (m_reservedOp "||" >> return OR) AssocLeft ]
         , [ Infix (m_reservedOp "&&" >> return AND) AssocLeft ]
         , [ Infix (m_reservedOp "==" >> return Eq) AssocLeft
@@ -76,26 +74,30 @@ table = [
         ]
 
 term :: Parser Exp
-term = funcCall <|> m_parens exprparser
-    <|> IdentifierExp . fromString <$> m_identifier
-    <|> ConsChar <$> m_charLit
-    <|> ConsString . fromString <$> m_stringLit
-    <|> ConsNum . fromInteger <$> m_integer
+term = choice $ fmap try
+    [ funcCall
+    , m_parens exprparser
+    , IdentifierExp . fromString <$> m_identifier
+    , ConsChar <$> m_charLit
+    , ConsString . fromString <$> m_stringLit
+    , ConsNum . fromInteger <$> m_integer
+    ]
   where
-    funcCall = try $ FuncCallExp
+    funcCall = FuncCallExp
         <$> fmap fromString m_identifier
         <*> m_parens (m_commaSep exprparser)
 
 statparser :: Parser [Stat]
 statparser = many statement
   where
-    statement =
-        try assignStatement
-        <|> whileStatement
-        <|> ifStatement
-        <|> returnStatement
-        <|> funCallStatement
-        <|> varDefStatement
+    statement = choice $ fmap try
+        [ assignStatement
+        , whileStatement
+        , ifStatement
+        , returnStatement
+        , funCallStatement
+        , varDefStatement
+        ]
       where
         assignStatement = Assign
             <$> fmap fromString m_identifier
@@ -146,7 +148,7 @@ voidParser :: Default a => Parser a
 voidParser = return def <* m_reserved "void"
 
 programParser :: Parser Program
-programParser = many (try parseFunDeclr <|> parseFunDef)
+programParser = many $ choice $ fmap try [ parseFunDeclr, parseFunDef]
   where
     returnTypeParser = Just <$> dataTypeParser <|> voidParser
     parseFunDeclr = FunDeclr
