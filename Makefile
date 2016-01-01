@@ -1,7 +1,7 @@
 STACK_BASE=linux-x86_64-gmp4
 STACK_URL=https://www.stackage.org/stack/$(STACK_BASE)
 
-export PATH := $(wildcard stack-*-$(STACK_BASE)):$(PATH)
+export PATH := stack-1.0.0-linux-x86_64-gmp4:$(PATH)
 
 vype: stack
 	stack setup
