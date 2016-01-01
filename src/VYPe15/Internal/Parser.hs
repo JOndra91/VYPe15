@@ -74,8 +74,9 @@ table = [
         ]
 
 term :: Parser Exp
-term = (try funcCall) <|> choice
-        [ m_parens exprparser
+term = choice
+        [ try funcCall
+        , m_parens exprparser
         , IdentifierExp . fromString <$> m_identifier
         , ConsChar <$> m_charLit
         , ConsString . fromString <$> m_stringLit
@@ -89,8 +90,9 @@ term = (try funcCall) <|> choice
 statparser :: Parser [Stat]
 statparser = many statement
   where
-    statement = try assignStatement <|> choice
-        [ whileStatement
+    statement = choice
+        [ try assignStatement
+        , whileStatement
         , ifStatement
         , returnStatement
         , funCallStatement
