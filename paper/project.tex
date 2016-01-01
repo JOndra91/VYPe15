@@ -46,7 +46,7 @@ compiler. As you can see we violated concept of syntax-directed translation.
 	\label{fig:architecture}
 \end{figure}
 
-We omitted the semantic analyzer from the syntax analyzer an left it with the intermediate
+We omitted the semantic analyzer from the syntax analyzer and left it with the intermediate
 code generator as a standalone component instead. Numerous reasons lead is to this decision
 such as :
 
@@ -83,7 +83,8 @@ In our parser we implemented the following grammar.
             | <dataType> <identifier> {',' <identifier>} ';'
 <expression> : <expression> ( '||' | '&&' | '==' | '!=' | '<' | '>' | '<=' ) <expression>
              | <expression> ( '%' | '+' | '-' | '!' | '>=' | '*' | '/' ) <expression>
-             | '('<dataType>')'
+             | '(' <expression> ')'
+             | '(' <dataType> ')' <expression>
              | <identifier>
              | <identifier> '(' ')' ';'
              | <identifier> '(' <expression> (, <expression>)* ')' ';'
@@ -144,15 +145,23 @@ helps with simulating the stack frame in assembly language.
 \section{Compilation}
 \label{sec:compilation}
 To compile this project the Haskell platform \footnote{https://www.haskell.org/platform/}
-\footnote{tested on the \texttt{7.10.3 version}}
+\footnote{tested on the \texttt{7.10.2 version}}
 is required. It contains all necessary libraries for any serious haskell programming
 and is de-facto a standard platform for Haskell developers. It contains the \texttt{GHC}
 (Glorious Glasgow
 Haskell compiler), some widely-used libraries and the \texttt{cabal} build system.
-To compile our project just type \texttt{make}.
 
 We use cabal to build our project so if cabal is missing, the project won't build.
 All libraries used in our project are part of the Haskell platform.
+
+Alternative way of building is using \texttt{stack} \footnote{http://haskellstack.org/}.
+It allows us to build project without being too much dependent on installed version of
+Haskell platform. Because version installed on reference build machine \textit{Merlin}
+is too old, we choose this way of building using \texttt{Makefile}.
+It downloads \texttt{stack} package and uses it to install Haskell platform \textit{7.10.2}
+into user space if required version is not installed already (it is installed into
+\texttt{\$HOME/.stack} directory).
+To compile our project just type \texttt{make}.
 
 \section{Conclusion}
 In our project we implemented compiler for the VYPe15 programming language. Compiler
