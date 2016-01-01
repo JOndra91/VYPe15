@@ -60,42 +60,38 @@ The last component is the optimizer/target code generator duo, which is fairly s
 \subsection{Grammar}
 In our parser we implemented the following grammar.
 
-\begin{grammar}
-<program> ::= \{ <funcDeclr> | <funcDef> \}
+\begin{verbatim}
+<program> : ( <funcDeclr> | <funcDef> )*
+<funcDeclr> : (<dataType> | 'void') <identifier> '(' <typeParamList> ')' ';'
+<funcDef> : (<dataType> | 'void') <identifier> '(' <paramList> ')' (<statement>)*
+<dataType> : ('int' | 'char' | 'string')
+<typeParamList> : 'void'
+                | <dataType> (, <dataType>)*			  
+<paramList> : 'void'
+            | <dataType> <identifier> (, <dataType> <identifier>)*		  
+<statement> : <identifier> = <expression> ';'
+            | 'while' '(' <expression> ')' '{' (<statement>)* '}'
+            | 'if' '(' <expression> ')' '{' (<statement>)* '}' 'else' '{' (<statement>)* '}'
+            | 'return' ( <expression> ';' | ';' )
+            | <identifier> '(' ')' ';'
+            | <identifier> '(' <expression> (',' <expression>)* ')' ';'
+            | <dataType> <identifier> {',' <identifier>} ';'       
+<expression> : <expression> ( '||' | '&&' | '==' | '!=' | '<' | '>' | '<=' ) <expression>
+             | <expression> ( '%' | '+' | '-' | '!' | '>=' | '*' | '/' ) <expression>
+             | '('<dataType>')'
+             | <identifier>
+             | <identifier> '(' ')' ';'
+             | <identifier> '(' <expression> (, <expression>)* ')' ';'
+             | <charLit>
+             | <stringLit>
+             | <numLit>          
+\end{verbatim}
 
-<funcDeclr> ::= (<dataType> | 'void') <identifier> '(' <typeParamList> ')' ';'
-
-<funcDef> ::= (<dataType> | 'void') <identifier> '(' <paramList> ')' '\{'\{<statement>\} '\}'
-
-<dataType> ::= ('int' | 'char' | 'string')
-
-
-<typeParamList> ::= 'void'
-				\alt <dataType> \{, <dataType>\}
-			  
-<paramList> ::= void
-		  \alt <dataType> <identifier> \{, <dataType> <identifier>\}
-		  
-<statement> ::= <identifier> = <expression> ';'
-	      \alt 'while' '(' Expression ')' '{' {Statement} '}'
-	   	  \alt 'if' '(' <expression> ')' '\{' \{ <statement> \} '\}' 'else' '\{' \{ <statement> \} '\}'
-	   	  \alt 'return' ( <expression> ';' | ';' )
-	   	  \alt <identifier> '('')' ';'
-	   	  \alt <identifier> '(' <expression> {',' <expression>} ')' ';'
-	   	  \alt <dataType> <identifier> {',' <identifier>} ';'
-        
-<expression> ::= <expression> ( '||' | '\&\&' | '==' | '!=' | '<' | '>' | '<=' ) <expression>
-           \alt <expression> ( '%' | '+' | '-' | '!' | '>=' | '*' | '/' ) <expression>
-           \alt '('<dataType>')'
-           \alt <identifier>
-           \alt <identifier> '(' ')' ';'
-           \alt <identifier> '(' Expression {, Expression} ')' ;
-           \alt <charLit>
-           \alt <stringLit>
-           \alt <numLit> 
-           
-\end{grammar}
-
+Please not that comments and other lexer related parts of grammar are not displayed.
+The \texttt{<identifier>}, \texttt{<charLit>}, \texttt{<stringLit>} and \texttt{<numLit>}
+production rules are taken directly from project assignment, so we don't specify them
+again. Because this grammar can't be implemented using the standard LL(1) parser, we
+used higher order LL grammar as described in section \ref{sec:implementation}. 
 
 \section{Implementation}
 \label{sec:implementation}
@@ -114,7 +110,7 @@ constructing the parser is very similar to writing a grammar thanks to the well
 designed combinators such as the \texttt{many}, \texttt{<|>} and others.
 
 We are very satisfied with the way our solution works compare to the \texttt{happy}
-\footnote{https://www.haskell.org/happy/} and \texttt{alex} 
+\footnote{https://www.haskell.org/happy/} \cite{happy} and \texttt{alex} 
 \footnote{https://www.haskell.org/alex/} solution we used previously. The number one
 reason is that the parser description in the happy language is not part of our 
 compiler, which makes the debugging process much more time consuming and difficult
@@ -164,7 +160,6 @@ and intermediate code generator are strongly connected in our project.
 
 Optimizer for time reasons was not implemented and it is basically an identity
 function in the end. 
-
 
 \newpage
 \bibliographystyle{alpha}
