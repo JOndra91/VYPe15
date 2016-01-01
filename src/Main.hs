@@ -35,10 +35,11 @@ main = getArgs >>= \case
         exitWith $ ExitFailure 5
 
 runWithArgs :: FilePath -> FilePath -> IO ()
-runWithArgs inputFile outputFile = readFile inputFile >>= \input -> runWithExcept $ do
-    ast <- liftE 2 $ parse parseVYPe15 inputFile input
-    tac <- liftE 3 $ semanticAnalysis ast
-    return $ generateAssembly tac
+runWithArgs inputFile outputFile =
+    readFile inputFile >>= \input -> runWithExcept $ do
+        ast <- liftE 2 $ parse parseVYPe15 inputFile input
+        tac <- liftE 3 $ semanticAnalysis ast
+        return $ generateAssembly tac
   where
     liftE :: (Show e) => Int -> Either e a -> Except (Int, String) a
     liftE code = ExceptT . Identity . either (Left . (code,) . show) Right
