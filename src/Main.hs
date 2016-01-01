@@ -28,7 +28,11 @@ main :: IO ()
 main = getArgs >>= \case
     [inputFile] -> runWithArgs inputFile "out.asm"
     [inputFile, outputFile] -> runWithArgs inputFile outputFile
-    _ -> exitWith $ ExitFailure 5
+    _ -> usage
+  where
+    usage = do
+        hPutStrLn stderr "./vype <inputFile> [outputFile]"
+        exitWith $ ExitFailure 5
 
 runWithArgs :: FilePath -> FilePath -> IO ()
 runWithArgs inputFile outputFile = readFile inputFile >>= \input -> runWithExcept $ do
