@@ -12,8 +12,9 @@ import Data.List (head)
 import Data.Text (unlines)
 import Data.Text.IO (putStrLn)
 import System.Environment (getArgs)
-import System.IO (IO, print, readFile)
+import System.IO (IO, hPrint, readFile, stderr)
 import Text.Parsec (parse)
+import Text.Show (Show)
 
 import VYPe15.Internal.AssemblyGenerator (generateAssembly)
 import VYPe15.Internal.Parser (parseVYPe15)
@@ -23,9 +24,12 @@ import VYPe15.Types.TAC (TAC, strTac)
 main :: IO ()
 main = head <$> getArgs >>=
     ( readFile >=>
-        either print (either print (putStrLn . generateAssembly) . semanticAnalysis)
+        either printErr (either printErr (putStrLn . generateAssembly) . semanticAnalysis)
           . parse parseVYPe15 ""
     )
 
 prettyPrintTac :: [TAC] -> IO ()
 prettyPrintTac = putStrLn . unlines . (strTac <$>)
+
+printErr :: Show a => a -> IO ()
+printErr = hPrint stderr
