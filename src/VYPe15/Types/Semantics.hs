@@ -22,8 +22,8 @@ import Data.Functor (Functor)
 import Data.List (tail)
 import Data.Maybe (Maybe)
 import Data.String (IsString)
-import Data.Text (Text)
-import Text.Show (Show)
+import Data.Text (Text, unpack)
+import Text.Show (Show(show))
 
 import VYPe15.Types.AST (DataType)
 import VYPe15.Types.SymbolTable
@@ -32,7 +32,10 @@ import VYPe15.Types.TAC (TAC)
 
 newtype SError
     = SError Text
-  deriving (Show, IsString)
+  deriving (IsString)
+
+instance Show SError where
+    show (SError t) = unpack t
 
 data AnalyzerState = AnalyzerState
     { functionTable :: FunctionTable
