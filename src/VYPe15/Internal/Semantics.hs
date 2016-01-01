@@ -20,7 +20,7 @@ import Data.Eq ((/=), (==))
 import Data.Foldable (and, sum)
 import Data.Function (($), (.))
 import Data.Functor (fmap)
-import Data.List (any, elem, length, reverse, zipWith)
+import Data.List (any, elem, length, null, reverse, zipWith)
 import Data.Map as M (empty, fromList, insert, keys, lookup, (!))
 import Data.Maybe (Maybe(Just, Nothing), fromJust, isJust, maybe)
 import Data.Monoid ((<>))
@@ -29,7 +29,9 @@ import Data.Text (Text)
 import VYPe15.Internal.Util (showText, withHead)
 import VYPe15.Types.AST
     ( DataType(DChar, DInt, DString)
-    , Exp(AND, Cast, ConsChar, ConsNum, ConsString, Div, Eq, FuncCallExp, Greater, GreaterEq, IdentifierExp, Less, LessEq, Minus, Mod, NOT, NonEq, OR, Plus, Times)
+    , Exp(AND, Cast, ConsChar, ConsNum, ConsString, Div, Eq, FuncCallExp,
+          Greater, GreaterEq, IdentifierExp, Less, LessEq, Minus, Mod, NOT,
+          NonEq, OR, Plus, Times)
     , FunDeclrOrDef(FunDeclr, FunDef)
     , Identifier(getId)
     , Param(AnonymousParam, Param)
@@ -56,7 +58,7 @@ import VYPe15.Types.Semantics
     , withFunc'
     )
 import VYPe15.Types.SymbolTable
-    ( Function(Function, functionParams, functionReturn)
+    ( Function(Function, functionParams, functionReturn, isDefined)
     , FunctionState(FuncDeclared, FuncDefined)
     , LabelId
     , Variable(Variable, varType)
@@ -66,12 +68,14 @@ import VYPe15.Types.SymbolTable
 import VYPe15.Types.TAC
     ( Label(Label')
     , Operator
-    , TAC(Begin, Call, GetAt, Goto, JmpZ, Label, PopParams, Print, PushParam, Read, SetAt, Strcat)
+    , TAC(Begin, Call, GetAt, Goto, JmpZ, Label, PopParams, Print, PushParam,
+          Read, SetAt, Strcat)
     )
 import qualified VYPe15.Types.TAC as TAC (TAC(Assign, Return))
 import qualified VYPe15.Types.TAC as Const (Constant(Char, Int, String))
 import qualified VYPe15.Types.TAC as Op
-    ( Operator(Add, And, Const, Div, Eq, GE, GT, LE, LT, MaskByte, Mod, Mul, Neq, Not, Or, Set, Sub)
+    ( Operator(Add, And, Const, Div, Eq, GE, GT, LE, LT, MaskByte, Mod, Mul,
+          Neq, Not, Or, Set, Sub)
     )
 
 semanticAnalysis :: Program -> Either SError [TAC]
@@ -88,7 +92,17 @@ semanticAnalysis ast = evalSemAnalyzer state $ semanticAnalysis' ast
             }
 
 semanticAnalysis' :: Program -> SemanticAnalyzer ()
-semanticAnalysis' = mapM_ processFunDeclrOrDef
+semanticAnalysis' p = do
+    mapM_ processFunDeclrOrDef p
+    fn <- withFunc' (lookup "main") >>= \case
+        Just fn -> return fn
+        Nothing -> throwError "Function 'main' is not defined nor declared."
+    unless (functionReturn fn == Just DInt)
+        $ throwError "Invalid return type of 'main': Expecting 'int'."
+    unless (null $ functionParams fn)
+        $ throwError "Function 'main' doesn't expect any parameters."
+    unless (isDefined fn == FuncDefined)
+        $ throwError "Function 'main' is not defined."
 
 processFunDeclrOrDef :: FunDeclrOrDef -> SemanticAnalyzer ()
 processFunDeclrOrDef = \case

@@ -53,7 +53,7 @@ type VariableTable = M.Map Identifier Variable
 data FunctionState
     = FuncDefined
     | FuncDeclared
-  deriving (Show)
+  deriving (Eq, Show)
 
 data Function = Function
     { isDefined :: FunctionState
