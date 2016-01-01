@@ -15,7 +15,7 @@ import Data.Maybe (Maybe(Just, Nothing))
 import Data.String (String, fromString)
 
 import Data.Default (Default(def))
-import Text.Parsec (ParsecT, eof, many, try, (<?>), (<|>))
+import Text.Parsec (ParsecT, eof, many, spaces, try, (<?>), (<|>))
 import Text.Parsec.Expr
     ( Assoc(AssocLeft)
     , Operator(Infix, Prefix)
@@ -144,6 +144,7 @@ voidParser = return def <* m_reserved "void"
 
 programParser :: Parser Program
 programParser = many (try parseFunDeclr <|> parseFunDef)
+                <* spaces
   where
     returnTypeParser = Just <$> dataTypeParser <|> voidParser
     parseFunDeclr = FunDeclr
