@@ -51,7 +51,9 @@ exprparser = buildExpressionParser table term <?> "expression"
 
 table :: OperatorTable String u Identity Exp
 table = [
-          [ Infix (m_reservedOp "||" >> return OR) AssocLeft ]
+          [ Prefix (m_reservedOp "!" >> return NOT) ]
+        , [ Prefix (Cast <$> m_parens dataTypeParser) ]
+        , [ Infix (m_reservedOp "||" >> return OR) AssocLeft ]
         , [ Infix (m_reservedOp "&&" >> return AND) AssocLeft ]
         , [ Infix (m_reservedOp "==" >> return Eq) AssocLeft
           , Infix (m_reservedOp "!=" >> return NonEq) AssocLeft
@@ -68,8 +70,6 @@ table = [
         , [ Infix (m_reservedOp "+" >> return Plus) AssocLeft
           , Infix (m_reservedOp "-" >> return Minus) AssocLeft
           ]
-        , [ Prefix (m_reservedOp "!" >> return NOT) ]
-        , [ Prefix (Cast <$> m_parens dataTypeParser) ]
         ]
 
 term :: Parser Exp
